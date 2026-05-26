@@ -6,7 +6,8 @@ import json
 import logging
 from pathlib import Path
 
-import aiohttp
+import urllib.request
+import urllib.error
 
 from ehistorian_gateway.models.config import BootstrapConfig, GatewayConfig
 
@@ -66,26 +67,34 @@ class ConfigManager:
 
     async def _try_fetch_remote_config(self) -> GatewayConfig | None:
         endpoint = f"{str(self._bootstrap_config.api_url).rstrip('/')}/api/ehistorian/gateway/config/{self._bootstrap_config.gateway_id}"
-        timeout = aiohttp.ClientTimeout(total=15)
+        def fetch():
+            req = urllib.request.Request(endpoint)
+            with urllib.request.urlopen(req, timeout=15) as response:
+                return response.read(), response.status
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(endpoint) as response:
-                    if response.status >= 400:
-                        body = await response.text()
-                        self._logger.warning(
-                            "Remote config fetch failed",
-                            extra={"status": response.status, "body": body[:1000], "gateway_id": self._bootstrap_config.gateway_id},
-                        )
-                        return None
-                    payload = await response.json()
-                    return GatewayConfig.from_mapping(payload)
+            body, status = await asyncio.to_thread(fetch)
+            if status >= 400:
+                self._logger.warning(
+                    "Remote config fetch failed",
+                    extra={"status": status, "body": body.decode('utf-8', 'ignore')[:1000], "gateway_id": self._bootstrap_config.gateway_id},
+                )
+                return None
+            payload = json.loads(body)
+            return GatewayConfig.from_mapping(payload)
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode('utf-8', 'ignore')
+            self._logger.warning(
+                "Remote config fetch failed",
+                extra={"status": exc.code, "body": body[:1000], "gateway_id": self._bootstrap_config.gateway_id},
+            )
+            return None
         except Exception as exc:
             self._logger.warning("Remote config fetch error", extra={"error": str(exc), "gateway_id": self._bootstrap_config.gateway_id})
             return None
 
     def _load_bootstrap(self) -> BootstrapConfig:
         payload = json.loads(self._bootstrap_path.read_text(encoding="utf-8"))
-        return BootstrapConfig.model_validate(payload)
+        return BootstrapConfig.from_dict(payload)
 
     def _load_local_gateway_config(self) -> GatewayConfig:
         payload = json.loads(self._bootstrap_path.read_text(encoding="utf-8"))
@@ -97,4 +106,4 @@ class ConfigManager:
 
     @staticmethod
     def _hash_config(config: GatewayConfig) -> str:
-        return json.dumps(config.model_dump(mode="json", by_alias=True), sort_keys=True, separators=(",", ":"))
+        return json.dumps(config.to_dict(), sort_keys=True, separators=(",", ":"))

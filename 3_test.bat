@@ -9,11 +9,13 @@ echo ========================================
 echo   Posílám test request...
 echo ========================================
 echo.
+if not exist ".venv\Scripts\activate.bat" (
+    call setup_env.bat
+)
 echo Aktivuji venv...
 call .venv\Scripts\activate.bat
 if errorlevel 1 (
     echo ERROR: Nemuzu aktivovat venv
-    echo Zkus spustit: run_server.bat
     pause
     exit /b 1
 )
