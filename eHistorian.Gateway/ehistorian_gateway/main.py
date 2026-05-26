@@ -9,8 +9,6 @@ import logging
 import os
 import signal
 
-from aiohttp import web
-
 from ehistorian_gateway.config.manager import ConfigManager
 from ehistorian_gateway.models.config import GatewayConfig
 from ehistorian_gateway.models.event import PersistedBatch, SourceEvent, UnifiedEvent
@@ -182,39 +180,60 @@ class GatewayApplication:
                 )
 
     async def _run_health_server(self) -> None:
-        app = web.Application()
-        app.router.add_get("/health", self._health_handler)
-        runner = web.AppRunner(app)
-        await runner.setup()
-        site = web.TCPSite(runner, host=self.current_config.health_host, port=self.current_config.health_port)
-        await site.start()
+        async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+            try:
+                request_line = await reader.readline()
+                if not request_line:
+                    return
+                while True:
+                    line = await reader.readline()
+                    if line == b'\r\n' or not line:
+                        break
+                
+                if request_line.startswith(b"GET /health "):
+                    pending_batches = await self._sqlite_queue.pending_count() if self._sqlite_queue is not None else 0
+                    queue_size = self._source_bus.size if self._source_bus is not None else 0
+                    normalized_queue_size = self._normalized_bus.size if self._normalized_bus is not None else 0
+                    payload = {
+                        "status": "healthy" if not self._stop_event.is_set() else "stopping",
+                        "gatewayId": self.current_config.gateway_id,
+                        "queueSize": queue_size,
+                        "normalizedQueueSize": normalized_queue_size,
+                        "retryCount": self._metrics.retry_count,
+                        "droppedEvents": self._source_bus.metrics.dropped if self._source_bus is not None else 0,
+                        "pendingBatches": pending_batches,
+                        "lastSuccessfulSendAt": self._metrics.last_successful_send_at,
+                        "lastConfigRefreshAt": self._metrics.last_config_refresh_at,
+                        "collectors": len(self._collector_handles),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                    import json
+                    body = json.dumps(payload).encode('utf-8')
+                    headers = (
+                        b"HTTP/1.1 200 OK\r\n"
+                        b"Content-Type: application/json\r\n"
+                        + f"Content-Length: {len(body)}\r\n".encode('ascii')
+                        + b"Connection: close\r\n\r\n"
+                    )
+                    writer.write(headers + body)
+                    await writer.drain()
+                else:
+                    writer.write(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                    await writer.drain()
+            except Exception:
+                pass
+            finally:
+                writer.close()
+                with suppress(Exception):
+                    await writer.wait_closed()
+
+        server = await asyncio.start_server(handle_client, self.current_config.health_host, self.current_config.health_port)
         self._logger.info(
             "Health endpoint started",
             extra={"host": self.current_config.health_host, "port": self.current_config.health_port},
         )
-        try:
+        async with server:
             await self._stop_event.wait()
-        finally:
-            await runner.cleanup()
-
-    async def _health_handler(self, _: web.Request) -> web.Response:
-        pending_batches = await self._sqlite_queue.pending_count() if self._sqlite_queue is not None else 0
-        queue_size = self._source_bus.size if self._source_bus is not None else 0
-        normalized_queue_size = self._normalized_bus.size if self._normalized_bus is not None else 0
-        payload = {
-            "status": "healthy" if not self._stop_event.is_set() else "stopping",
-            "gatewayId": self.current_config.gateway_id,
-            "queueSize": queue_size,
-            "normalizedQueueSize": normalized_queue_size,
-            "retryCount": self._metrics.retry_count,
-            "droppedEvents": self._source_bus.metrics.dropped if self._source_bus is not None else 0,
-            "pendingBatches": pending_batches,
-            "lastSuccessfulSendAt": self._metrics.last_successful_send_at,
-            "lastConfigRefreshAt": self._metrics.last_config_refresh_at,
-            "collectors": len(self._collector_handles),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-        return web.json_response(payload)
 
     async def _wait_for_stop(self) -> None:
         await self._stop_event.wait()

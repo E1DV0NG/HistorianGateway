@@ -5,7 +5,10 @@ from datetime import datetime, timezone
 import re
 from typing import Any
 
-import pyodbc
+try:
+    import pyodbc
+except ImportError:
+    pyodbc = None
 
 from ehistorian_gateway.models.config import SqlSourceConfig
 
@@ -35,6 +38,9 @@ class SqlClient:
             f"SELECT [{self._config.tag_column}] AS tag_name, [{self._config.value_column}] AS value{timestamp_projection} "
             f"FROM [{self._config.table}]"
         )
+
+        if pyodbc is None:
+            raise RuntimeError("pyodbc module is not installed. SQL Polling is disabled. Please install pyodbc.")
 
         with pyodbc.connect(self._config.connection_string, timeout=5) as connection:
             cursor = connection.cursor()
