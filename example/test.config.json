@@ -1,7 +1,7 @@
 {
   "_comment": "Config pro testovani - prazdne, gateway pouze naslouchá",
-  "gatewayId": "line-01-secret",
   "apiUrl": "http://localhost:5000",
+  "gatewayId": "line-01-secret",
   "opcua": [],
   "sql": []
 }
