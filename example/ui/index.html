@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eHistorian — Control Panel</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- ── Sidebar ─────────────────────────────────────── -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="product">eHistorian</div>
+            <div class="tagline">Control Panel v1.0</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-label">Main</div>
+
+            <div class="nav-item active" onclick="showPage('dashboard', this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                </svg>
+                Dashboard
+            </div>
+
+            <div class="nav-item" onclick="showPage('config', this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
+                </svg>
+                Configuration
+            </div>
+
+            <div class="nav-item" onclick="showPage('config-view', this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="16 18 22 12 16 6" />
+                    <polyline points="8 6 2 12 8 18" />
+                </svg>
+                Config Viewer
+            </div>
+
+            <div class="nav-item" onclick="showPage('logs', this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                </svg>
+                Logs
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="version-badge">Build 2026.05</div>
+        </div>
+    </aside>
+
+    <!-- ── Main ────────────────────────────────────────── -->
+    <main class="main">
+
+        <!-- Dashboard -->
+        <section id="dashboard" class="page active">
+            <div class="page-header">
+                <h2>Dashboard</h2>
+                <p>Monitor and control running processes</p>
+            </div>
+
+            <div class="dashboard-grid">
+
+                <!-- Mock Server -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Mock Server</div>
+                            <div class="card-subtitle">OPC UA / SQL simulator</div>
+                        </div>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-indicator" id="server-dot"></div>
+                        <span class="status-text" id="server-status">Stopped</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="btn-group">
+                        <button class="btn-success" onclick="startServer()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <polygon points="5 3 19 12 5 21 5 3" />
+                            </svg>
+                            Start
+                        </button>
+                        <button class="btn-danger" onclick="stopServer()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <rect x="6" y="6" width="12" height="12" />
+                            </svg>
+                            Stop
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Gateway -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Gateway</div>
+                            <div class="card-subtitle">Data forwarding service</div>
+                        </div>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-indicator" id="gateway-dot"></div>
+                        <span class="status-text" id="gateway-status">Stopped</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="btn-group">
+                        <button class="btn-success" onclick="startGateway()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <polygon points="5 3 19 12 5 21 5 3" />
+                            </svg>
+                            Start
+                        </button>
+                        <button class="btn-danger" onclick="stopGateway()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <rect x="6" y="6" width="12" height="12" />
+                            </svg>
+                            Stop
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Test -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Test Event</div>
+                            <div class="card-subtitle">Send a manual test payload</div>
+                        </div>
+                    </div>
+                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;line-height:1.6;">
+                        Sends a test event through the gateway pipeline and logs the result.
+                    </p>
+                    <button class="btn-primary btn-full" onclick="runTest()">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <line x1="22" y1="2" x2="11" y2="13" />
+                            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                        </svg>
+                        Send Event
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Configuration -->
+        <section id="config" class="page">
+            <div class="page-header">
+                <h2>Configuration</h2>
+                <p>Manage gateway settings and data sources</p>
+            </div>
+
+            <!-- Basic Settings -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Basic Settings</div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-row">
+                        <label>Gateway ID</label>
+                        <input type="text" id="gatewayId" placeholder="e.g. gw-plant-01">
+                    </div>
+                    <div class="form-row">
+                        <label>API URL</label>
+                        <input type="text" id="apiUrl" placeholder="https://api.example.com">
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="saveConfig()">Save Settings</button>
+            </div>
+
+            <!-- OPC UA Sources -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">OPC UA Sources</div>
+                        <div class="card-subtitle">Configure OPC UA server connections</div>
+                    </div>
+                    <button class="btn-ghost" onclick="addOpcUa()">+ Add Source</button>
+                </div>
+                <div id="opcua-list"></div>
+            </div>
+
+            <!-- SQL Sources -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">SQL Sources</div>
+                        <div class="card-subtitle">Configure database polling connections</div>
+                    </div>
+                    <button class="btn-ghost" onclick="addSql()">+ Add Source</button>
+                </div>
+                <div id="sql-list"></div>
+            </div>
+        </section>
+
+        <!-- Config Viewer -->
+        <section id="config-view" class="page">
+            <div class="page-header">
+                <h2>Config Viewer</h2>
+                <p>Inspect and export the current configuration</p>
+            </div>
+
+            <div class="card">
+                <div class="config-toolbar">
+                    <div class="card-title">Current Configuration (JSON)</div>
+                    <div class="btn-group">
+                        <button class="btn-ghost" onclick="refreshConfigView()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="23 4 23 10 17 10" />
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                            </svg>
+                            Refresh
+                        </button>
+                        <button class="btn-ghost" onclick="copyConfig()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                            Copy
+                        </button>
+                        <button class="btn-primary" onclick="downloadConfig()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            Download .json
+                        </button>
+                    </div>
+                </div>
+                <div class="config-display" id="config-json">Loading...</div>
+            </div>
+        </section>
+
+        <!-- Logs -->
+        <section id="logs" class="page">
+            <div class="page-header">
+                <h2>Logs</h2>
+                <p>View and manage log files</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Log Files</div>
+                    <div class="btn-group">
+                        <button class="btn-ghost" onclick="loadLogs()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="23 4 23 10 17 10" />
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                            </svg>
+                            Refresh
+                        </button>
+                        <button class="btn-danger" onclick="clearAllLogs()">Clear All</button>
+                    </div>
+                </div>
+                <div id="logs-list"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
