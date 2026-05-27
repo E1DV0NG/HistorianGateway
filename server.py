@@ -90,6 +90,54 @@ def ui_config():
     save_config(config_data)
     return jsonify({'status': 'saved'})
 
+# Fix SQL drivers
+@app.route('/api/config/fix-drivers', methods=['POST'])
+def fix_drivers():
+    try:
+        import pyodbc
+        import re
+    except ImportError:
+        return jsonify({'status': 'error', 'message': 'Missing pyodbc library'}), 500
+
+    drivers = pyodbc.drivers()
+    if not drivers:
+        return jsonify({'status': 'error', 'message': 'Žádné ODBC ovladače nebyly nalezeny.'}), 404
+
+    best_driver = None
+    priorities = ["ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server", "SQL Server"]
+    for p in priorities:
+        if p in drivers:
+            best_driver = p
+            break
+            
+    if not best_driver:
+        return jsonify({'status': 'error', 'message': f'Nenalezen žádný kompatibilní ovladač. Dostupné: {drivers}'}), 404
+
+    config = load_config()
+    changed = False
+    
+    for src in config.get('sql', []):
+        conn_str = src.get('connectionString', '')
+        if conn_str:
+            new_conn_str = re.sub(r'Driver=\{[^}]+\}', f'Driver={{{best_driver}}}', conn_str, flags=re.IGNORECASE)
+            
+            if "ODBC Driver 18" in best_driver:
+                if "TrustServerCertificate=yes" not in new_conn_str and "TrustServerCertificate=Yes" not in new_conn_str:
+                    new_conn_str = re.sub(r'TrustServerCertificate=no;?', '', new_conn_str, flags=re.IGNORECASE)
+                    if not new_conn_str.endswith(';'):
+                        new_conn_str += ';'
+                    new_conn_str += 'TrustServerCertificate=yes;'
+                    
+            if new_conn_str != conn_str:
+                src['connectionString'] = new_conn_str
+                changed = True
+
+    if changed:
+        save_config(config)
+        return jsonify({'status': 'ok', 'message': f'Ovladač nastaven na {best_driver}'})
+    else:
+        return jsonify({'status': 'ok', 'message': 'Konfigurace je aktuální.'})
+
 # Status
 @app.route('/api/status', methods=['GET'])
 def status():
