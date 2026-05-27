@@ -155,11 +155,11 @@ function removeOpcUa(i) {
 function addSql() {
   currentConfig.sql.push({
     assetId: 201,
-    connectionString: "",
-    table: "",
-    tagColumn: "",
-    valueColumn: "",
-    timestampColumn: "",
+    connectionString: "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=TvojeSilneHesloZ_Azure;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;",
+    table: "CurrentValues",
+    tagColumn: "TagName",
+    valueColumn: "Value",
+    timestampColumn: "UpdatedAt",
     pollingMs: 5000,
   });
   renderSources();

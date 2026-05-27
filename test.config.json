@@ -3,5 +3,24 @@
   "apiUrl": "http://localhost:5000",
   "gatewayId": "line-01-secret",
   "opcua": [],
-  "sql": []
+  "sql": [
+    {
+      "assetId": 201,
+      "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=TvojeSilneHesloZ_Azure;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;",
+      "table": "CurrentValues",
+      "tagColumn": "TagName",
+      "valueColumn": "Value",
+      "timestampColumn": "UpdatedAt",
+      "pollingMs": 5000
+    },
+    {
+      "assetId": 202,
+      "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=TvojeSilneHesloZ_Azure;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;",
+      "table": "CurrentValuesLine2",
+      "tagColumn": "TagName",
+      "valueColumn": "Value",
+      "timestampColumn": "UpdatedAt",
+      "pollingMs": 5000
+    }
+  ]
 }
