@@ -171,6 +171,28 @@ function removeSql(i) {
   saveConfig();
 }
 
+function fixSqlDrivers() {
+  const btn = document.getElementById("fix-drivers-btn");
+  if (btn) btn.textContent = "Opravuji...";
+  
+  fetch("/api/config/fix-drivers", { method: "POST" })
+    .then(r => r.json())
+    .then(data => {
+      if (btn) btn.textContent = "Opravit SQL Ovladače";
+      if (data.status === "ok") {
+        alert("Konfigurace byla úspěšně upravena! Restartuji SQL poller...");
+        loadConfig();
+        processAction("gateway", "start");
+      } else {
+        alert("Chyba při opravě ovladačů: " + data.message);
+      }
+    })
+    .catch(err => {
+      if (btn) btn.textContent = "Opravit SQL Ovladače";
+      alert("Nepodařilo se zavolat API: " + err);
+    });
+}
+
 // ── Render Sources ──────────────────────────────────────
 function renderSources() {
   const opcList = document.getElementById("opcua-list");

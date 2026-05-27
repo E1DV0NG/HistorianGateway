@@ -194,7 +194,10 @@
                         <div class="card-title">SQL Sources</div>
                         <div class="card-subtitle">Configure database polling connections</div>
                     </div>
-                    <button class="btn-ghost" onclick="addSql()">+ Add Source</button>
+                    <div class="btn-group">
+                        <button id="fix-drivers-btn" class="btn-primary" onclick="fixSqlDrivers()">Opravit SQL Ovladače</button>
+                        <button class="btn-ghost" onclick="addSql()">+ Add Source</button>
+                    </div>
                 </div>
                 <div id="sql-list"></div>
             </div>
