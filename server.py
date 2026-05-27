@@ -97,6 +97,18 @@ def status():
         'gateway': is_running('gateway')
     })
 
+# Device IP
+@app.route('/api/ip', methods=['GET'])
+def get_ip():
+    try:
+        import urllib.request
+        req = urllib.request.Request('https://api.ipify.org')
+        with urllib.request.urlopen(req, timeout=3) as response:
+            ip = response.read().decode('utf8')
+        return jsonify({'ip': ip})
+    except Exception as e:
+        return jsonify({'ip': 'unknown', 'error': str(e)})
+
 # Process control
 @app.route('/api/processes/<name>', methods=['POST'])
 def manage_process(name: str):
