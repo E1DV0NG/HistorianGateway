@@ -76,6 +76,27 @@
             <div class="dashboard-grid">
 
 
+                <!-- Device IP -->
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Device IP</div>
+                            <div class="card-subtitle">Public IP for Azure SQL Firewall</div>
+                        </div>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-text" id="device-ip-status" style="font-family: var(--mono); font-size: 1.2em; color: var(--text);">Loading...</span>
+                    </div>
+                    <div class="divider"></div>
+                    <button class="btn-ghost btn-full" onclick="fetchDeviceIp()">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10" />
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                        Refresh IP
+                    </button>
+                </div>
+
                 <!-- Gateway -->
                 <div class="card">
                     <div class="card-header">
@@ -244,6 +265,23 @@
                     </div>
                 </div>
                 <div id="logs-list"></div>
+            </div>
+
+            <!-- Log Viewer -->
+            <div class="card" id="log-viewer-card" style="display: none; margin-top: 20px;">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title" id="log-viewer-title">Log Details</div>
+                        <div class="card-subtitle" id="log-viewer-subtitle"></div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn-primary" onclick="setLogViewMode('json')" id="btn-view-json">JSON</button>
+                        <button class="btn-ghost" onclick="setLogViewMode('table')" id="btn-view-table">Table</button>
+                        <button class="btn-ghost" onclick="closeLogViewer()">Close</button>
+                    </div>
+                </div>
+                <div id="log-viewer-json" class="config-display" style="display: block;"></div>
+                <div id="log-viewer-table" style="display: none; overflow-x: auto;"></div>
             </div>
         </section>
 

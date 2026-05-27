@@ -18,6 +18,7 @@ window.addEventListener("load", () => {
   setInterval(updateStatus, 2000);
   loadConfig();
   loadLogs();
+  fetchDeviceIp();
 });
 
 // ── Navigation ──────────────────────────────────────────
@@ -58,6 +59,20 @@ function setDot(name, running) {
     text.classList.remove("running");
     text.textContent = "Stopped";
   }
+}
+
+// ── Device IP ───────────────────────────────────────────
+function fetchDeviceIp() {
+  const el = document.getElementById("device-ip-status");
+  if (el) el.textContent = "Loading...";
+  fetch("/api/ip")
+    .then((r) => r.json())
+    .then((data) => {
+      if (el) el.textContent = data.ip !== 'unknown' ? data.ip : "Error fetching IP";
+    })
+    .catch(() => {
+      if (el) el.textContent = "Error";
+    });
 }
 
 // ── Process Controls ────────────────────────────────────
@@ -313,6 +328,9 @@ function syntaxHighlight(json) {
 }
 
 // ── Logs ────────────────────────────────────────────────
+let currentLogData = null;
+let currentLogFilename = "";
+
 function loadLogs() {
   fetch("/api/logs")
     .then((r) => r.json())
@@ -331,13 +349,98 @@ function loadLogs() {
               <div class="log-name">${log.name}</div>
               <div class="log-time">${time}</div>
             </div>
-            <button class="btn-danger" onclick="deleteLog('${log.name}')">Delete</button>
+            <div class="btn-group">
+              <button class="btn-ghost" onclick="viewLog('${log.name}')">View</button>
+              <button class="btn-danger" onclick="deleteLog('${log.name}')">Delete</button>
+            </div>
           </div>
         `;
         })
         .join("");
     })
     .catch(() => {});
+}
+
+function viewLog(filename) {
+  fetch(`/api/log/${filename}`)
+    .then(r => r.json())
+    .then(data => {
+      currentLogData = data;
+      currentLogFilename = filename;
+      document.getElementById("log-viewer-card").style.display = "block";
+      document.getElementById("log-viewer-subtitle").textContent = filename;
+      setLogViewMode('json');
+    })
+    .catch(() => notify("Failed to load log details", true));
+}
+
+function closeLogViewer() {
+  document.getElementById("log-viewer-card").style.display = "none";
+  currentLogData = null;
+  currentLogFilename = "";
+}
+
+function setLogViewMode(mode) {
+  const btnJson = document.getElementById("btn-view-json");
+  const btnTable = document.getElementById("btn-view-table");
+  const elJson = document.getElementById("log-viewer-json");
+  const elTable = document.getElementById("log-viewer-table");
+
+  if (mode === 'json') {
+    btnJson.className = "btn-primary";
+    btnTable.className = "btn-ghost";
+    elJson.style.display = "block";
+    elTable.style.display = "none";
+    elJson.innerHTML = syntaxHighlight(JSON.stringify(currentLogData, null, 2));
+  } else {
+    btnJson.className = "btn-ghost";
+    btnTable.className = "btn-primary";
+    elJson.style.display = "none";
+    elTable.style.display = "block";
+    elTable.innerHTML = generateLogTable(currentLogData);
+  }
+}
+
+function generateLogTable(data) {
+  if (!data) return "No data";
+  let html = `<table class="log-table">`;
+  
+  if (data.events && Array.isArray(data.events)) {
+    // Ingest log format
+    html += `<thead><tr>
+      <th>Gateway ID</th>
+      <th>Asset ID</th>
+      <th>Source</th>
+      <th>Source ID</th>
+      <th>Tag</th>
+      <th>Value</th>
+      <th>Quality</th>
+      <th>Timestamp</th>
+    </tr></thead><tbody>`;
+    data.events.forEach(ev => {
+      html += `<tr>
+        <td>${ev.gatewayId || ''}</td>
+        <td>${ev.assetId || ''}</td>
+        <td>${ev.source || ''}</td>
+        <td>${ev.sourceId || ''}</td>
+        <td>${ev.tag || ''}</td>
+        <td>${ev.value !== undefined ? ev.value : ''}</td>
+        <td>${ev.quality || ''}</td>
+        <td>${ev.timestamp || ''}</td>
+      </tr>`;
+    });
+    html += `</tbody>`;
+  } else {
+    // Generic table for any JSON object
+    html += `<thead><tr><th>Property</th><th>Value</th></tr></thead><tbody>`;
+    for (const key in data) {
+      const val = typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key];
+      html += `<tr><td>${key}</td><td>${val}</td></tr>`;
+    }
+    html += `</tbody>`;
+  }
+  html += `</table>`;
+  return html;
 }
 
 function deleteLog(filename) {

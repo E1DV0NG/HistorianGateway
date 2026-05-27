@@ -541,3 +541,33 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Log Table ──────────────────────────── */
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-align: left;
+}
+
+.log-table th {
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.log-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-dim);
+  word-break: break-word;
+}
+
+.log-table tr:hover td {
+  background: var(--surface-2);
+  color: var(--text);
+}
