@@ -3,7 +3,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import aiohttp
+import urllib.request
+import urllib.error
+import json
+import asyncio
 
 from ehistorian_gateway.models.event import PersistedBatch
 
@@ -11,21 +14,17 @@ from ehistorian_gateway.models.event import PersistedBatch
 class RestClient:
     def __init__(self, timeout_seconds: float) -> None:
         self._timeout_seconds = timeout_seconds
-        self._session: aiohttp.ClientSession | None = None
+        self._started = False
         self._logger = logging.getLogger("ehistorian_gateway.rest_client")
 
     async def start(self) -> None:
-        if self._session is None:
-            timeout = aiohttp.ClientTimeout(total=self._timeout_seconds)
-            self._session = aiohttp.ClientSession(timeout=timeout)
+        self._started = True
 
     async def close(self) -> None:
-        if self._session is not None:
-            await self._session.close()
-            self._session = None
+        self._started = False
 
     async def send_batch(self, api_url: str, batch: PersistedBatch) -> dict[str, Any]:
-        if self._session is None:
+        if not self._started:
             raise RuntimeError("HTTP session not started")
 
         endpoint = f"{str(api_url).rstrip('/')}/api/ehistorian/gateway/ingest"
@@ -33,24 +32,25 @@ class RestClient:
             "gatewayId": batch.gateway_id,
             "events": [event.to_wire() for event in batch.events],
         }
-        headers = {"Content-Type": "application/json", "X-Gateway-Batch-Id": batch.batch_id}
+        data = json.dumps(payload).encode("utf-8")
+        headers = {"Content-Type": "application/json", "X-Gateway-Batch-Id": str(batch.batch_id)}
 
-        async with self._session.post(endpoint, json=payload, headers=headers) as response:
-            text = await response.text()
-            if response.status >= 400:
-                self._logger.warning(
-                    "REST ingest failed",
-                    extra={"status": response.status, "batch_id": batch.batch_id, "body": text[:1000]},
-                )
-                raise aiohttp.ClientResponseError(
-                    response.request_info,
-                    response.history,
-                    status=response.status,
-                    message=text,
-                    headers=response.headers,
-                )
+        def fetch():
+            req = urllib.request.Request(endpoint, data=data, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=self._timeout_seconds) as response:
+                return response.read(), response.status
 
-            if not text:
-                return {"status": response.status}
-
-            return await response.json()
+        try:
+            body, status = await asyncio.to_thread(fetch)
+            if not body:
+                return {"status": status}
+            return json.loads(body)
+        except urllib.error.HTTPError as exc:
+            text = exc.read().decode("utf-8", "ignore")
+            self._logger.warning(
+                "REST ingest failed",
+                extra={"status": exc.code, "batch_id": batch.batch_id, "body": text[:1000]},
+            )
+            raise RuntimeError(f"HTTP {exc.code}: {text}")
+        except Exception as exc:
+            raise RuntimeError(f"Request failed: {exc}")

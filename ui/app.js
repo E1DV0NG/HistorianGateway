@@ -39,7 +39,6 @@ function updateStatus() {
   fetch("/api/status")
     .then((r) => r.json())
     .then((data) => {
-      setDot("server", data.server);
       setDot("gateway", data.gateway);
     })
     .catch(() => {});
@@ -77,8 +76,7 @@ function processAction(name, action) {
   });
 }
 
-const startServer = () => processAction("server", "start");
-const stopServer = () => processAction("server", "stop");
+
 const startGateway = () => processAction("gateway", "start");
 const stopGateway = () => processAction("gateway", "stop");
 
