@@ -31,7 +31,7 @@ if errorlevel 1 (
 :: 3. Nainstalovat vsechny balicky (pip)
 echo [2/3] Instaluji a aktualizuji balicky...
 python -m pip install --upgrade pip -q
-pip install flask flask-cors requests -q
+pip install flask flask-cors requests pandas openpyxl -q
 pip install --only-binary :all: pyodbc -q
 
 if exist "eHistorian.Gateway\requirements.txt" (

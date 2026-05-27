@@ -144,6 +144,57 @@ body {
   margin-left: var(--sidebar-w);
   padding: 36px 40px;
   min-height: 100vh;
+  transition: margin-left 0.3s ease;
+}
+
+/* ── Collapsed Sidebar ────────────────────────── */
+body.sidebar-collapsed .sidebar {
+  width: 60px;
+}
+
+body.sidebar-collapsed .main {
+  margin-left: 60px;
+}
+
+body.sidebar-collapsed .sidebar-logo .product,
+body.sidebar-collapsed .sidebar-logo .tagline,
+body.sidebar-collapsed .nav-label,
+body.sidebar-collapsed .version-badge {
+  display: none;
+}
+
+body.sidebar-collapsed .sidebar-logo {
+  padding: 24px 10px;
+}
+
+body.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+body.sidebar-collapsed .nav-item svg {
+  margin-right: 0;
+}
+
+body.sidebar-collapsed .nav-item-text {
+  display: none;
+}
+
+.sidebar-toggle-btn {
+  position: absolute;
+  top: 24px;
+  right: 12px;
+  padding: 4px;
+}
+body.sidebar-collapsed .sidebar-toggle-btn {
+  right: auto;
+  left: 12px;
+}
+body.sidebar-collapsed .sidebar-toggle-btn svg {
+  transform: rotate(180deg);
+}
+.sidebar {
+  transition: width 0.3s ease;
 }
 
 .page {

@@ -1,0 +1,26 @@
+{
+  "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=efactory-server-karel.database.windows.net,1433;Database=eFactory;UID=dbadmin;PWD=admin123.;TrustServerCertificate=yes;Encrypt=yes;",
+  "table": "CurrentValues",
+  "tagColumn": "TagName",
+  "valueColumn": "Value",
+  "timestampColumn": "UpdatedAt",
+  "intervalSeconds": 10,
+  "sensors": {
+    "Temperature": {
+      "base": 22,
+      "noise": 1.5
+    },
+    "Pressure": {
+      "base": 1013.25,
+      "noise": 10
+    },
+    "Flow": {
+      "base": 50,
+      "noise": 5
+    },
+    "Level": {
+      "base": 75,
+      "noise": 2
+    }
+  }
+}

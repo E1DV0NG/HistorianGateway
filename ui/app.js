@@ -12,14 +12,151 @@ let currentConfig = {
   sql: [],
 };
 
+let currentProfile = "";
+let availableProfiles = [];
+
 // ── Init ────────────────────────────────────────────────
 window.addEventListener("load", () => {
   updateStatus();
   setInterval(updateStatus, 2000);
-  loadConfig();
+  setInterval(pollServerActivity, 2000);
+  loadProfiles();
   loadLogs();
   fetchDeviceIp();
+  // Restore sidebar state
+  if (localStorage.getItem('sidebarCollapsed') === 'true') {
+    document.body.classList.add('sidebar-collapsed');
+  }
 });
+
+// ── Sidebar Toggle ──────────────────────────────────────────
+function toggleSidebar() {
+  const collapsed = document.body.classList.toggle('sidebar-collapsed');
+  localStorage.setItem('sidebarCollapsed', collapsed);
+}
+
+// ── Activity Monitor ───────────────────────────────────
+const LOG_COLORS = {
+  info:    'var(--text-dim)',
+  ok:      'var(--success)',
+  error:   'var(--danger)',
+  warn:    'var(--warning)',
+  process: 'var(--accent)',
+};
+const LOG_ICONS = {
+  info:    '▸',
+  ok:      '✔',
+  error:   '✘',
+  warn:    '⚠',
+  process: '▶',
+};
+
+function logActivity(msg, type = 'info') {
+  const log = document.getElementById('activity-log');
+  if (!log) return;
+
+  // Remove placeholder
+  const placeholder = log.querySelector('[data-placeholder]');
+  if (placeholder) placeholder.remove();
+  const empty = log.querySelector('div[style*="text-align: center"]');
+  if (empty) empty.remove();
+
+  const now = new Date();
+  const ts = now.toLocaleTimeString('cs-CZ', { hour12: false }) + 
+              '.' + String(now.getMilliseconds()).padStart(3, '0');
+
+  const entry = document.createElement('div');
+  entry.style.cssText = `color: ${LOG_COLORS[type] || LOG_COLORS.info}; border-bottom: 1px solid var(--border-light); padding: 3px 0; display: flex; gap: 10px; align-items: baseline;`;
+  entry.innerHTML = `
+    <span style="color: var(--text-muted); flex-shrink: 0;">${ts}</span>
+    <span style="color: ${LOG_COLORS[type]}; flex-shrink: 0;">${LOG_ICONS[type] || '▸'}</span>
+    <span>${msg}</span>
+  `;
+
+  // Prepend (newest at top due to flex-direction: column-reverse)
+  log.appendChild(entry);
+
+  // Keep max 200 entries
+  while (log.children.length > 200) log.removeChild(log.firstChild);
+}
+
+function clearActivityLog() {
+  const log = document.getElementById('activity-log');
+  if (log) log.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px 0;">No activity yet...</div>';
+}
+
+// ── Server activity poll ───────────────────────────────────
+let _activityLastId = 0;
+
+function pollServerActivity() {
+  fetch(`/api/activity?since=${_activityLastId}`)
+    .then(r => r.json())
+    .then(entries => {
+      entries.forEach(e => {
+        if (e.id > _activityLastId) _activityLastId = e.id;
+        // Convert server UTC timestamp to local time
+        const d = new Date(e.timestamp);
+        const ts = d.toLocaleTimeString('cs-CZ', { hour12: false }) +
+                   '.' + String(d.getMilliseconds()).padStart(3, '0');
+        // Reuse logActivity but inject pre-formatted timestamp
+        logActivityRaw(ts, e.msg, e.kind);
+
+        // Auto-reload logs list if an ingest occurred
+        if (e.msg.startsWith("INGEST")) {
+          loadLogs();
+        }
+      });
+    })
+    .catch(() => {});
+}
+
+function logActivityRaw(ts, msg, type = 'info') {
+  const log = document.getElementById('activity-log');
+  if (!log) return;
+  const empty = log.querySelector('div[style*="text-align: center"]');
+  if (empty) empty.remove();
+
+  const entry = document.createElement('div');
+  entry.style.cssText = `color: ${LOG_COLORS[type] || LOG_COLORS.info}; border-bottom: 1px solid var(--border-light); padding: 3px 0; display: flex; gap: 10px; align-items: baseline;`;
+  entry.innerHTML = `
+    <span style="color: var(--text-muted); flex-shrink: 0;">${ts}</span>
+    <span style="color: ${LOG_COLORS[type]}; flex-shrink: 0;">${LOG_ICONS[type] || '▸'}</span>
+    <span>${msg}</span>
+  `;
+  log.appendChild(entry);
+  while (log.children.length > 300) log.removeChild(log.firstChild);
+  
+  // Auto-scroll to top (newest is at top due to column-reverse)
+  log.scrollTop = 0;
+}
+
+// ── Excel Export ────────────────────────────────────────────
+function exportLogsExcel() {
+  const btn = event.target.closest('button');
+  const origText = btn.innerHTML;
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Generating...`;
+  btn.disabled = true;
+
+  fetch('/api/logs/export/excel')
+    .then(res => {
+      if (!res.ok) return res.json().then(e => { throw new Error(e.error || 'Export failed'); });
+      return res.blob();
+    })
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `eHistorian_Export_${new Date().toISOString().replace(/[:.]/g,'-').slice(0,19)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      notify('Excel export downloaded!');
+    })
+    .catch(err => notify(err.message, true))
+    .finally(() => {
+      btn.innerHTML = origText;
+      btn.disabled = false;
+    });
+}
 
 // ── Navigation ──────────────────────────────────────────
 function showPage(id, el) {
@@ -35,12 +172,19 @@ function showPage(id, el) {
   if (id === "config-view") renderConfigView();
 }
 
-// ── Status ──────────────────────────────────────────────
+// ── Status ────────────────────────────────────────────────
+let _prevStatus = {};
 function updateStatus() {
   fetch("/api/status")
     .then((r) => r.json())
     .then((data) => {
-      setDot("gateway", data.gateway);
+      ['gateway', 'fakegen'].forEach(name => {
+        setDot(name, data[name]);
+        if (_prevStatus[name] !== undefined && _prevStatus[name] !== data[name]) {
+          logActivity(`${name.charAt(0).toUpperCase()+name.slice(1)} ${data[name] ? 'started' : 'stopped'}`, data[name] ? 'process' : 'warn');
+        }
+        _prevStatus[name] = data[name];
+      });
     })
     .catch(() => {});
 }
@@ -75,39 +219,183 @@ function fetchDeviceIp() {
     });
 }
 
-// ── Process Controls ────────────────────────────────────
+// ── Process Controls ──────────────────────────────────────
 function processAction(name, action) {
+  logActivity(`${capitalize(name)}: ${action === 'start' ? 'Starting...' : 'Stopping...'}`, 'process');
   fetch(`/api/processes/${name}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action }),
-  }).then(() => {
-    notify(
-      action === "start"
-        ? `${capitalize(name)} starting...`
-        : `${capitalize(name)} stopping...`,
-    );
+  }).then((r) => r.json()).then(data => {
+    if (data.status === 'error') logActivity(`${capitalize(name)}: ${data.message}`, 'error');
     setTimeout(updateStatus, action === "start" ? 1500 : 500);
   });
 }
 
 
 const startGateway = () => processAction("gateway", "start");
-const stopGateway = () => processAction("gateway", "stop");
+const stopGateway  = () => processAction("gateway", "stop");
+
+// Fake Data Generator controls
+const startFakegen = () => processAction("fakegen", "start");
+const stopFakegen  = () => processAction("fakegen", "stop");
+
+function toggleFakegenSettings() {
+  const panel = document.getElementById("fakegen-settings");
+  if (!panel) return;
+  const visible = panel.style.display !== "none";
+  panel.style.display = visible ? "none" : "block";
+  if (!visible) loadFakegenConfig();
+}
+
+function parseFakegenConnStr(connStr) {
+  const p = {};
+  connStr.split(';').forEach(part => {
+    const idx = part.indexOf('=');
+    if (idx > 0) p[part.substring(0, idx).trim().toLowerCase()] = part.substring(idx + 1).trim();
+  });
+  return p;
+}
+
+function buildFakegenConnStr(server, database, uid, pwd) {
+  return `Driver={ODBC Driver 18 for SQL Server};Server=${server};Database=${database};UID=${uid};PWD=${pwd};TrustServerCertificate=yes;Encrypt=yes;`;
+}
+
+function loadFakegenConfig() {
+  fetch('/api/fakegen/config')
+    .then(r => r.json())
+    .then(cfg => {
+      const p = parseFakegenConnStr(cfg.connectionString || '');
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+      set('fg-server',   p['server'] || '');
+      set('fg-database', p['database'] || '');
+      set('fg-uid',      p['uid'] || '');
+      set('fg-pwd',      p['pwd'] || '');
+      set('fg-table',    cfg.table || 'CurrentValues');
+      set('fg-tagcol',   cfg.tagColumn || 'TagName');
+      set('fg-interval', cfg.intervalSeconds || 10);
+      set('fg-connstr-raw', cfg.connectionString || '');
+      logActivity(`Fakegen config loaded — db: ${p['database']||'?'}, interval: ${cfg.intervalSeconds}s`, 'info');
+    });
+}
+
+function saveFakegenConfig() {
+  const get = id => document.getElementById(id)?.value || '';
+  const rawConn = get('fg-connstr-raw');
+  const connStr = rawConn || buildFakegenConnStr(get('fg-server'), get('fg-database'), get('fg-uid'), get('fg-pwd'));
+
+  const cfg = {
+    connectionString: connStr,
+    table:            get('fg-table') || 'CurrentValues',
+    tagColumn:        get('fg-tagcol') || 'TagName',
+    valueColumn:      'Value',
+    timestampColumn:  'UpdatedAt',
+    intervalSeconds:  parseInt(get('fg-interval')) || 10,
+    sensors: {
+      Temperature: { base: 22.0,    noise: 1.5  },
+      Pressure:    { base: 1013.25, noise: 10.0 },
+      Flow:        { base: 50.0,    noise: 5.0  },
+      Level:       { base: 75.0,    noise: 2.0  }
+    }
+  };
+
+  fetch('/api/fakegen/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cfg)
+  }).then(() => {
+    notify('Fakegen config saved — changes apply on next cycle');
+    logActivity(`Fakegen config saved (interval: ${cfg.intervalSeconds}s, table: ${cfg.table})`, 'ok');
+  });
+}
 
 // ── Test ────────────────────────────────────────────────
 function runTest() {
+  logActivity('Sending test event...', 'info');
   fetch("/api/test", { method: "POST" })
     .then((r) => r.json())
     .then((data) => {
       if (data.status === "ok") {
         notify("Event sent successfully");
+        logActivity('Test event sent successfully', 'ok');
         setTimeout(loadLogs, 1000);
       } else {
         notify("Error: " + data.message, true);
+        logActivity('Test event failed: ' + data.message, 'error');
       }
     })
-    .catch(() => notify("Control server not running", true));
+    .catch(() => { notify("Control server not running", true); logActivity('Server not reachable', 'error'); });
+}
+
+// ── Profiles ─────────────────────────────────────────────
+function loadProfiles() {
+  fetch("/api/profiles")
+    .then((r) => r.json())
+    .then((data) => {
+      currentProfile = data.active;
+      availableProfiles = data.profiles;
+      const select = document.getElementById("profile-select");
+      if (select) {
+        select.innerHTML = availableProfiles.map(p => 
+          `<option value="${p}" ${p === currentProfile ? 'selected' : ''}>${p}</option>`
+        ).join("");
+      }
+      loadConfig();
+    })
+    .catch(() => notify("Failed to load profiles", true));
+}
+
+function switchProfile(name) {
+  if (!name || name === currentProfile) return;
+  fetch("/api/profiles/active", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  }).then(() => {
+    notify(`Switched to profile: ${name}`);
+    logActivity(`Profile switched to: ${name}`, 'process');
+    loadProfiles();
+  });
+}
+
+function createProfile() {
+  let name = prompt("Enter new profile name (e.g. line-2):");
+  if (!name) return;
+  if (!name.endsWith(".json")) name += ".json";
+  
+  fetch("/api/profiles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { notify(data.error, true); logActivity('Profile create failed: ' + data.error, 'error'); }
+    else {
+      notify(`Profile ${name} created`);
+      logActivity(`Profile created: ${name}`, 'ok');
+      switchProfile(name);
+    }
+  });
+}
+
+function deleteProfile() {
+  if (availableProfiles.length <= 1) {
+    notify("Cannot delete the only profile", true);
+    return;
+  }
+  if (!confirm(`Are you sure you want to delete profile: ${currentProfile}?`)) return;
+  
+  fetch(`/api/profiles/${currentProfile}`, { method: "DELETE" })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { notify(data.error, true); logActivity('Profile delete failed: ' + data.error, 'error'); }
+      else {
+        notify("Profile deleted");
+        logActivity(`Profile deleted: ${currentProfile}`, 'warn');
+        loadProfiles();
+      }
+    });
 }
 
 // ── Config Load/Save ────────────────────────────────────
@@ -119,6 +407,7 @@ function loadConfig() {
       document.getElementById("gatewayId").value = config.gatewayId || "";
       document.getElementById("apiUrl").value = config.apiUrl || "";
       renderSources();
+      logActivity(`Config loaded — ${currentProfile}: GW=${config.gatewayId}, SQL=${(config.sql||[]).length}, OPC UA=${(config.opcua||[]).length}`, 'info');
     })
     .catch(() => {});
 }
@@ -131,7 +420,10 @@ function saveConfig() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(currentConfig),
-  }).then(() => notify("Configuration saved"));
+  }).then(() => {
+    notify("Configuration saved");
+    logActivity(`Config saved — profile: ${currentProfile} (${currentConfig.sql.length} SQL, ${currentConfig.opcua.length} OPC UA)`, 'ok');
+  });
 }
 
 // ── OPC UA ──────────────────────────────────────────────
@@ -438,16 +730,25 @@ function loadLogs() {
 }
 
 function viewLog(filename) {
+  logActivity(`Opening log: ${filename}`, 'info');
   fetch(`/api/log/${filename}`)
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
     .then(data => {
       currentLogData = data;
       currentLogFilename = filename;
+      const events = data.events || [];
       document.getElementById("log-viewer-card").style.display = "block";
-      document.getElementById("log-viewer-subtitle").textContent = filename;
-      setLogViewMode('json');
+      document.getElementById("log-viewer-title").textContent = "Log Details";
+      document.getElementById("log-viewer-subtitle").textContent = `${filename} — ${events.length} event(s)`;
+      setLogViewMode('table');
+      logActivity(`Log opened: ${filename} (${events.length} events, GW: ${data.gatewayId||'?'})`, 'ok');
+      // Scroll viewer into view
+      document.getElementById("log-viewer-card").scrollIntoView({ behavior: 'smooth', block: 'start' });
     })
-    .catch(() => notify("Failed to load log details", true));
+    .catch(e => { notify("Failed to load log: " + e.message, true); logActivity('Failed to open log: ' + filename, 'error'); });
 }
 
 function closeLogViewer() {
@@ -523,16 +824,22 @@ function deleteLog(filename) {
   if (!confirm(`Delete log: ${filename}?`)) return;
   fetch(`/api/log/${filename}`, { method: "DELETE" }).then(() => {
     notify("Log deleted");
+    logActivity(`Log deleted: ${filename}`, 'warn');
+    if (currentLogFilename === filename) closeLogViewer();
     loadLogs();
   });
 }
 
 function clearAllLogs() {
   if (!confirm("Delete ALL log files? This cannot be undone.")) return;
-  fetch("/api/logs/clear", { method: "POST" }).then(() => {
-    notify("All logs cleared");
-    loadLogs();
-  });
+  fetch("/api/logs/clear", { method: "POST" })
+    .then(r => r.json())
+    .then(data => {
+      notify("All logs cleared");
+      logActivity(`All logs cleared (${data.deleted || 0} files deleted)`, 'warn');
+      closeLogViewer();
+      loadLogs();
+    });
 }
 
 // ── Utilities ───────────────────────────────────────────
