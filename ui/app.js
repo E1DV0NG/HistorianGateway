@@ -155,7 +155,7 @@ function removeOpcUa(i) {
 function addSql() {
   currentConfig.sql.push({
     assetId: 201,
-    connectionString: "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=TvojeSilneHesloZ_Azure;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;",
+    connectionString: "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=Password123;Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=30;",
     table: "CurrentValues",
     tagColumn: "TagName",
     valueColumn: "Value",
@@ -191,6 +191,33 @@ function fixSqlDrivers() {
       if (btn) btn.textContent = "Opravit SQL Ovladače";
       alert("Nepodařilo se zavolat API: " + err);
     });
+}
+
+// ── SQL Connection String Helper ────────────────────────
+function updateSqlConnStr(i, key, val) {
+  const src = currentConfig.sql[i];
+  let params = {};
+  if (src.connectionString) {
+    src.connectionString.split(';').forEach(p => {
+      const idx = p.indexOf('=');
+      if (idx > 0) {
+        params[p.substring(0, idx).trim()] = p.substring(idx + 1).trim();
+      }
+    });
+  }
+  
+  if (val === '') {
+    delete params[key];
+  } else {
+    params[key] = val;
+  }
+  
+  src.connectionString = Object.entries(params)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(';') + (Object.keys(params).length > 0 ? ';' : '');
+    
+  saveConfig();
+  renderSources();
 }
 
 // ── Render Sources ──────────────────────────────────────
@@ -241,8 +268,15 @@ function renderSources() {
     sqlList.innerHTML = `<div class="empty-state">No SQL sources configured</div>`;
   } else {
     sqlList.innerHTML = currentConfig.sql
-      .map(
-        (src, i) => `
+      .map((src, i) => {
+        let params = {};
+        if (src.connectionString) {
+          src.connectionString.split(';').forEach(p => {
+            const idx = p.indexOf('=');
+            if (idx > 0) params[p.substring(0, idx).trim()] = p.substring(idx + 1).trim();
+          });
+        }
+        return `
       <div class="source-item">
         <div class="source-item-header">
           <span class="source-tag">SQL — Asset ${src.assetId}</span>
@@ -260,11 +294,31 @@ function renderSources() {
               onchange="currentConfig.sql[${i}].pollingMs=parseInt(this.value); saveConfig();">
           </div>
         </div>
-        <div class="form-row">
-          <label>Connection String</label>
-          <input type="text" value="${src.connectionString}"
-            onchange="currentConfig.sql[${i}].connectionString=this.value; saveConfig();">
+        <div class="grid-2">
+          <div class="form-row">
+            <label>Server</label>
+            <input type="text" value="${params['Server'] || ''}" onchange="updateSqlConnStr(${i}, 'Server', this.value)">
+          </div>
+          <div class="form-row">
+            <label>Database</label>
+            <input type="text" value="${params['Database'] || ''}" onchange="updateSqlConnStr(${i}, 'Database', this.value)">
+          </div>
+          <div class="form-row">
+            <label>User (Uid)</label>
+            <input type="text" value="${params['Uid'] || ''}" onchange="updateSqlConnStr(${i}, 'Uid', this.value)">
+          </div>
+          <div class="form-row">
+            <label>Password (Pwd)</label>
+            <input type="password" value="${params['Pwd'] || ''}" onchange="updateSqlConnStr(${i}, 'Pwd', this.value)">
+          </div>
         </div>
+        <details style="margin-bottom: 12px;">
+          <summary style="cursor: pointer; font-size: 11px; color: var(--accent); font-family: var(--mono); margin-bottom: 8px;">Advanced: Raw Connection String</summary>
+          <div class="form-row">
+            <input type="text" value="${src.connectionString}"
+              onchange="currentConfig.sql[${i}].connectionString=this.value; saveConfig(); renderSources();">
+          </div>
+        </details>
         <div class="grid-3">
           <div class="form-row">
             <label>Table</label>
@@ -288,8 +342,8 @@ function renderSources() {
             onchange="currentConfig.sql[${i}].timestampColumn=this.value; saveConfig();">
         </div>
       </div>
-    `,
-      )
+    `;
+      })
       .join("");
   }
 }
@@ -441,14 +495,14 @@ function generateLogTable(data) {
     </tr></thead><tbody>`;
     data.events.forEach(ev => {
       html += `<tr>
-        <td>${ev.gatewayId || ''}</td>
-        <td>${ev.assetId || ''}</td>
+        <td><span class="source-tag" style="background:var(--surface); color:var(--text); border:1px solid var(--border-light);">${ev.gatewayId || ''}</span></td>
+        <td><span style="font-weight:bold; color:var(--text);">${ev.assetId || ''}</span></td>
         <td>${ev.source || ''}</td>
         <td>${ev.sourceId || ''}</td>
-        <td>${ev.tag || ''}</td>
-        <td>${ev.value !== undefined ? ev.value : ''}</td>
-        <td>${ev.quality || ''}</td>
-        <td>${ev.timestamp || ''}</td>
+        <td><span class="source-tag">${ev.tag || ''}</span></td>
+        <td style="font-weight: 600; color: var(--accent); font-size: 14px;">${ev.value !== undefined ? ev.value : ''}</td>
+        <td><span style="color: ${ev.quality === 'Good' ? 'var(--success)' : 'var(--danger)'};">${ev.quality || ''}</span></td>
+        <td style="color: var(--text-muted); font-size: 11px;">${ev.timestamp || ''}</td>
       </tr>`;
     });
     html += `</tbody>`;

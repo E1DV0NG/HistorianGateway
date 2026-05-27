@@ -6,21 +6,21 @@
   "sql": [
     {
       "assetId": 201,
-      "connectionString": "Driver={SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=TvojeSilneHesloZ_Azure;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;",
+      "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=admin123.;Encrypt=yes;Connection Timeout=30;TrustServerCertificate=yes;",
+      "pollingMs": 5000,
       "table": "CurrentValues",
       "tagColumn": "TagName",
-      "valueColumn": "Value",
       "timestampColumn": "UpdatedAt",
-      "pollingMs": 5000
+      "valueColumn": "Value"
     },
     {
       "assetId": 202,
-      "connectionString": "Driver={SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=TvojeSilneHesloZ_Azure;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;",
+      "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=admin123.;Encrypt=yes;Connection Timeout=30;TrustServerCertificate=yes;",
+      "pollingMs": 5000,
       "table": "CurrentValuesLine2",
       "tagColumn": "TagName",
-      "valueColumn": "Value",
       "timestampColumn": "UpdatedAt",
-      "pollingMs": 5000
+      "valueColumn": "Value"
     }
   ]
 }
