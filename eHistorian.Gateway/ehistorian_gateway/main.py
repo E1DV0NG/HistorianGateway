@@ -76,7 +76,7 @@ class GatewayApplication:
         self._source_bus = EventBus(maxsize=self._config.queue_maxsize)
         self._normalized_bus = EventBus(maxsize=self._config.queue_maxsize)
         sqlite_path = os.getenv("EHG_SQLITE_PATH") or os.getenv("EMG_SQLITE_PATH") or self._config.sqlite_path
-        self._sqlite_queue = SQLiteQueue(sqlite_path)
+        self._sqlite_queue = SQLiteQueue(sqlite_path, max_bytes=self.current_config.offline_buffer_max_bytes)
         await self._sqlite_queue.initialize()
         self._rest_client = RestClient(timeout_seconds=self._config.request_timeout_seconds)
         await self._rest_client.start()

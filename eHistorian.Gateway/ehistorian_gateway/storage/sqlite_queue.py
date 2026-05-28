@@ -11,10 +11,11 @@ from ehistorian_gateway.models.event import PersistedBatch
 
 
 class SQLiteQueue:
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, max_bytes: int | None = None) -> None:
         self._path = Path(path)
         self._logger = logging.getLogger("ehistorian_gateway.sqlite_queue")
         self._lock = asyncio.Lock()
+        self._max_bytes = max_bytes
 
     async def initialize(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -51,6 +52,8 @@ class SQLiteQueue:
                 """,
                 (batch.batch_id, batch.gateway_id, batch.payload_json(), batch.attempts, now, now, now),
             )
+            if self._max_bytes is not None:
+                await self._prune_to_max_size(db)
             await db.commit()
 
     async def lease_next_batch(self) -> PersistedBatch | None:
@@ -105,6 +108,35 @@ class SQLiteQueue:
                 (next_attempt_at, error[:2000], now, batch_id),
             )
             await db.commit()
+
+    async def _prune_to_max_size(self, db: aiosqlite.Connection) -> None:
+        if self._max_bytes is None:
+            return
+
+        while True:
+            row = await (await db.execute("SELECT SUM(LENGTH(payload)) FROM outbound_batches")).fetchone()
+            current_bytes = int(row[0]) if row and row[0] is not None else 0
+            if current_bytes <= self._max_bytes:
+                break
+
+            oldest = await (await db.execute(
+                "SELECT batch_id FROM outbound_batches ORDER BY created_at ASC LIMIT 1"
+            )).fetchone()
+            if oldest is None:
+                break
+
+            await db.execute(
+                "DELETE FROM outbound_batches WHERE batch_id = ?",
+                (oldest[0],),
+            )
+            self._logger.warning(
+                "Offline buffer limit exceeded, pruning oldest batch",
+                extra={
+                    "batch_id": oldest[0],
+                    "current_bytes": current_bytes,
+                    "max_bytes": self._max_bytes,
+                },
+            )
 
     async def pending_count(self) -> int:
         async with aiosqlite.connect(self._path) as db:

@@ -56,6 +56,7 @@ class GatewayConfig:
     config_refresh_seconds: float = 30.0
     queue_maxsize: int = 10000
     sqlite_path: str = "data/offline-buffer.db"
+    offline_buffer_max_bytes: int = 10 * 1024 * 1024
     request_timeout_seconds: float = 15.0
     retry_base_seconds: float = 1.0
     retry_max_seconds: float = 60.0
@@ -74,6 +75,7 @@ class GatewayConfig:
             config_refresh_seconds=data.get("configRefreshSeconds", 30.0),
             queue_maxsize=data.get("queueMaxsize", 10000),
             sqlite_path=data.get("sqlitePath", "data/offline-buffer.db"),
+            offline_buffer_max_bytes=data.get("offlineBufferMaxBytes", 10 * 1024 * 1024),
             request_timeout_seconds=data.get("requestTimeoutSeconds", 15.0),
             retry_base_seconds=data.get("retryBaseSeconds", 1.0),
             retry_max_seconds=data.get("retryMaxSeconds", 60.0),
@@ -109,6 +111,7 @@ class GatewayConfig:
             "configRefreshSeconds": self.config_refresh_seconds,
             "queueMaxsize": self.queue_maxsize,
             "sqlitePath": self.sqlite_path,
+            "offlineBufferMaxBytes": self.offline_buffer_max_bytes,
             "requestTimeoutSeconds": self.request_timeout_seconds,
             "retryBaseSeconds": self.retry_base_seconds,
             "retryMaxSeconds": self.retry_max_seconds,

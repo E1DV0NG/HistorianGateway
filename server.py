@@ -87,7 +87,8 @@ def load_config(profile_name=None) -> dict:
         "gatewayId": "line-01-secret",
         "apiUrl":    "http://localhost:5000",
         "opcua":     [],
-        "sql":       []
+        "sql":       [],
+        "offlineBufferMaxBytes": 10485760
     }
 
 def save_config(config: dict, profile_name=None) -> None:
@@ -162,13 +163,8 @@ def create_profile():
             "gatewayId": "new-gateway",
             "apiUrl":    "http://localhost:5000",
             "opcua":     [],
-            "sql":       []
-        }, profile_name=name)
-        
-    return jsonify({'status': 'created', 'name': name})
-
-@app.route('/api/profiles/active', methods=['POST'])
-def set_active_profile():
+                "sql":       [],
+                "offlineBufferMaxBytes": 10485760
     data = request.get_json() or {}
     name = data.get('name')
     if not name or not (CONFIGS_DIR / name).exists():

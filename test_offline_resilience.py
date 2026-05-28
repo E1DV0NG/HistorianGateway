@@ -178,6 +178,39 @@ async def test_queue_and_retry_unit():
     log_success("Unit test proběhl úspěšně.\n")
 
 
+async def test_queue_prunes_oldest_batches_when_buffer_limit_exceeded():
+    log_info("Spouštím unit test pro offline buffer limit podle velikosti...")
+
+    db_path = "test_queue_limit.db"
+    if os.path.exists(db_path):
+        os.remove(db_path)
+
+    queue = SQLiteQueue(db_path, max_bytes=180)
+    await queue.initialize()
+
+    batch_ids = []
+    for index in range(3):
+        ev = UnifiedEvent(
+            gateway_id="test-gw",
+            asset_id=101 + index,
+            source="unit_test",
+            source_id=f"test-{index}",
+            tag="Temperature",
+            value=23.4 + index,
+            timestamp=datetime.now(timezone.utc)
+        )
+        batch = PersistedBatch.from_events("test-gw", [ev])
+        batch_ids.append(batch.batch_id)
+        await queue.enqueue_batch(batch)
+
+    count = await queue.pending_count()
+    assert count == 1, f"Očekáván 1 záznam po oříznutí starých dávků, nalezeno: {count}"
+    log_success("Offline buffer ořezává nejstarší dávky po překročení velikostního limitu.")
+
+    if os.path.exists(db_path):
+        os.remove(db_path)
+
+
 # --- INTEGRATION TESTS ---
 async def test_gateway_resilience_integration():
     global mock_server_received, mock_server_should_fail
