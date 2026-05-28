@@ -748,7 +748,11 @@ function viewLog(filename) {
       // Scroll viewer into view
       document.getElementById("log-viewer-card").scrollIntoView({ behavior: 'smooth', block: 'start' });
     })
-    .catch(e => { notify("Failed to load log: " + e.message, true); logActivity('Failed to open log: ' + filename, 'error'); });
+    .catch(e => {
+      console.error("Failed to load log:", e);
+      notify("Failed to load log: " + e.message, true);
+      logActivity(`Failed to open log: ${filename} (${e.message})`, 'error');
+    });
 }
 
 function closeLogViewer() {
