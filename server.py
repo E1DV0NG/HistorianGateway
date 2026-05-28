@@ -163,14 +163,10 @@ def create_profile():
             "gatewayId": "new-gateway",
             "apiUrl":    "http://localhost:5000",
             "opcua":     [],
-                "sql":       [],
-                "offlineBufferMaxBytes": 10485760
-    data = request.get_json() or {}
-    name = data.get('name')
-    if not name or not (CONFIGS_DIR / name).exists():
-        return jsonify({'error': 'Invalid profile'}), 400
-    ACTIVE_PROFILE_FILE.write_text(name, encoding='utf-8')
-    return jsonify({'status': 'ok', 'active': name})
+            "sql":       [],
+            "offlineBufferMaxBytes": 10485760
+        }, profile_name=name)
+    return jsonify({'status': 'created', 'name': name})
 
 @app.route('/api/profiles/<name>', methods=['DELETE'])
 def delete_profile(name: str):

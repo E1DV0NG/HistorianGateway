@@ -27,6 +27,10 @@ def load_config() -> dict:
         "valueColumn": "Value",
         "timestampColumn": "UpdatedAt",
         "intervalSeconds": 10,
+        "connectionTimeout": 5,
+        "connectRetries": 5,
+        "connectRetryBaseSeconds": 2,
+        "connectRetryMaxSeconds": 30,
         "sensors": {
             "Temperature": {"base": 22.0, "noise": 1.5},
             "Pressure": {"base": 1013.25, "noise": 10.0},
@@ -41,8 +45,28 @@ def generate_value(base: float, noise: float) -> float:
 
 
 def write_data_to_db(cfg: dict):
+    # Connection retry/backoff settings
+    max_retries = int(cfg.get("connectRetries", 5))
+    base_delay = float(cfg.get("connectRetryBaseSeconds", 2.0))
+    max_delay = float(cfg.get("connectRetryMaxSeconds", 30.0))
+    conn_timeout = int(cfg.get("connectionTimeout", 5))
+
+    attempt = 0
+    conn = None
+    while True:
+        try:
+            conn = pyodbc.connect(cfg["connectionString"], timeout=conn_timeout)
+            break
+        except Exception as e:
+            attempt += 1
+            if attempt >= max_retries:
+                print(f"[ODBC ERROR]: Connection failed after {attempt} attempts: {e}", flush=True)
+                return False
+            delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
+            print(f"[ODBC ERROR]: Connect attempt {attempt} failed: {e}. Retrying in {delay}s", flush=True)
+            time.sleep(delay)
+
     try:
-        conn = pyodbc.connect(cfg["connectionString"], timeout=5)
         cursor = conn.cursor()
 
         now = datetime.now(timezone.utc)
@@ -65,17 +89,26 @@ def write_data_to_db(cfg: dict):
                     INSERT ([{tag_col}], [{val_col}], [{ts_col}])
                     VALUES (source.tag_name, source.val, source.ts);
             """
-            cursor.execute(query, (tag, value, now))
-            print(f"[{now.strftime('%H:%M:%S')}] {tag} = {value}", flush=True)
+            try:
+                cursor.execute(query, (tag, value, now))
+                print(f"[{now.strftime('%H:%M:%S')}] {tag} = {value}", flush=True)
+            except Exception as e:
+                print(f"[ODBC ERROR] executing query for tag {tag}: {e}", flush=True)
+                raise
 
         conn.commit()
         cursor.close()
         conn.close()
+        return True
 
-    except pyodbc.Error as pe:
-        print(f"[ODBC ERROR]: {pe}", flush=True)
     except Exception as e:
+        try:
+            if conn is not None:
+                conn.close()
+        except Exception:
+            pass
         print(f"[ERROR]: {e}", flush=True)
+        return False
 
 
 def main():
@@ -95,8 +128,14 @@ def main():
             # Reload config on every cycle so changes apply without restart
             cfg = load_config()
             interval = cfg.get("intervalSeconds", 10)
-            write_data_to_db(cfg)
-            time.sleep(interval)
+            success = write_data_to_db(cfg)
+            if not success:
+                # If writing failed (connection issues), wait a bit longer before retrying
+                backoff = min(interval * 2, cfg.get("connectRetryMaxSeconds", 30))
+                print(f"[WARN] write failed, backing off for {backoff}s", flush=True)
+                time.sleep(backoff)
+            else:
+                time.sleep(interval)
     except KeyboardInterrupt:
         print("\nGenerování ukončeno.", flush=True)
 
