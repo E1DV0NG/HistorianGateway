@@ -10,7 +10,7 @@
       "tagColumn": "TagName",
       "valueColumn": "Value",
       "timestampColumn": "UpdatedAt",
-      "pollingMs": 5
+      "pollingMs": 5000
     },
     {
       "assetId": 202,
@@ -19,11 +19,11 @@
       "tagColumn": "TagName",
       "valueColumn": "Value",
       "timestampColumn": "UpdatedAt",
-      "pollingMs": 5
+      "pollingMs": 5000
     }
   ],
-  "batchSize": 50,
-  "batchFlushIntervalSeconds": 0.01,
+  "batchSize": 500,
+  "batchFlushIntervalSeconds": 3.0,
   "configRefreshSeconds": 30.0,
   "queueMaxsize": 10000,
   "sqlitePath": "data/offline-buffer.db",
