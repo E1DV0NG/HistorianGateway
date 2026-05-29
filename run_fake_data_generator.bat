@@ -24,4 +24,4 @@ echo.
 
 python fake_data_generator.py
 
-pause
+if not defined EHG_NO_PAUSE pause

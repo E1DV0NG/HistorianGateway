@@ -32,4 +32,4 @@ echo.
 cd eHistorian.Gateway
 python -m ehistorian_gateway.main
 
-pause
+if not defined EHG_NO_PAUSE pause

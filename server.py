@@ -105,23 +105,84 @@ def start_process(name: str, cmd: str) -> bool:
         print(f"[ERROR] Starting {name}: {e}")
         return False
 
-def stop_process(name: str) -> bool:
-    proc = processes[name]
-    if proc is None:
-        return True
+def get_psutil():
     try:
-        proc.terminate()
-        proc.wait(timeout=3)
-    except Exception:
+        import psutil
+        return psutil
+    except ImportError:
+        import subprocess, sys
         try:
-            proc.kill()
-        except Exception:
+            print("[INFO] Instaluji psutil pro sledování procesů...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "psutil", "-q"])
+            import psutil
+            return psutil
+        except Exception as e:
+            print(f"[ERROR] Nelze nainstalovat psutil: {e}")
+            return None
+
+def stop_process(name: str) -> bool:
+    killed = False
+    try:
+        psutil = get_psutil()
+        if psutil:
+            for proc in psutil.process_iter(['name', 'cmdline']):
+                try:
+                    pinfo = proc.info
+                    if pinfo.get('name') and 'python' in pinfo['name'].lower():
+                        cmdline = pinfo.get('cmdline') or []
+                        cmd_str = ' '.join(cmdline).lower()
+                        
+                        is_target = False
+                        if name == 'gateway' and 'ehistorian_gateway.main' in cmd_str:
+                            is_target = True
+                        elif name == 'fakegen' and 'fake_data_generator.py' in cmd_str:
+                            is_target = True
+                            
+                        if is_target:
+                            proc.terminate()
+                            try:
+                                proc.wait(timeout=3)
+                            except psutil.TimeoutExpired:
+                                proc.kill()
+                            killed = True
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    pass
+    except Exception as e:
+        print(f"[ERROR] Stopping {name}: {e}")
+        
+    if killed:
+        return True
+        
+    proc = processes.get(name)
+    if proc is not None:
+        try:
+            proc.terminate()
+        except:
             pass
-    processes[name] = None
+        processes[name] = None
     return True
 
 def is_running(name: str) -> bool:
-    proc = processes[name]
+    try:
+        psutil = get_psutil()
+        if psutil:
+            for proc in psutil.process_iter(['name', 'cmdline']):
+                try:
+                    pinfo = proc.info
+                    if pinfo.get('name') and 'python' in pinfo['name'].lower():
+                        cmdline = pinfo.get('cmdline') or []
+                        cmd_str = ' '.join(cmdline).lower()
+                        
+                        if name == 'gateway' and 'ehistorian_gateway.main' in cmd_str:
+                            return True
+                        if name == 'fakegen' and 'fake_data_generator.py' in cmd_str:
+                            return True
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    pass
+    except Exception as e:
+        print(f"[ERROR] is_running: {e}")
+        
+    proc = processes.get(name)
     return proc is not None and proc.poll() is None
 
 # ── Routes: UI ────────────────────────────────────────────────
@@ -308,13 +369,12 @@ def manage_process(name: str):
         if name == 'gateway':
             env = os.environ.copy()
             env["EHG_BOOTSTRAP_CONFIG"] = str(get_active_profile_path())
-            python_exe = str(BASE_DIR / ".venv" / "Scripts" / "python.exe")
-            cwd = str(BASE_DIR / "eHistorian.Gateway")
-            
+            env["EHG_NO_PAUSE"] = "1"
             try:
                 processes[name] = subprocess.Popen(
-                    [python_exe, "-m", "ehistorian_gateway.main"],
-                    cwd=cwd,
+                    'start cmd /c "set EHG_NO_PAUSE=1&&run_gateway.bat"',
+                    shell=True,
+                    cwd=str(BASE_DIR),
                     env=env
                 )
                 success = True
@@ -323,20 +383,21 @@ def manage_process(name: str):
                 success = False
 
         elif name == 'fakegen':
-            python_exe = str(BASE_DIR / ".venv" / "Scripts" / "python.exe")
             env = os.environ.copy()
             # Ensure config file exists before starting
             if not FAKEGEN_CONFIG_FILE.exists():
                 fakegen_config()  # Creates default if missing
             env["FAKEGEN_CONFIG"] = str(FAKEGEN_CONFIG_FILE)
+            env["EHG_NO_PAUSE"] = "1"
             try:
                 processes[name] = subprocess.Popen(
-                    [python_exe, str(BASE_DIR / "fake_data_generator.py")],
+                    'start cmd /c "set EHG_NO_PAUSE=1&&run_fake_data_generator.bat"',
+                    shell=True,
                     cwd=str(BASE_DIR),
                     env=env
                 )
                 success = True
-                log_activity(f"Fakegen started (PID: {processes[name].pid})", 'process')
+                log_activity(f"Fakegen started in separate CMD", 'process')
             except Exception as e:
                 print(f"[ERROR] Starting {name}: {e}")
                 log_activity(f"Fakegen start failed: {e}", 'error')
