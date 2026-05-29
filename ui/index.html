@@ -52,6 +52,14 @@
                 <span class="nav-item-text">Config Viewer</span>
             </div>
 
+            <div class="nav-item" onclick="showPage('history', this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span class="nav-item-text">History</span>
+            </div>
+
             <div class="nav-item" onclick="showPage('logs', this)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -273,7 +281,7 @@
                 <div class="card-header">
                     <div>
                         <div class="card-title">Configuration Profile</div>
-                        <div class="card-subtitle">Select, create, or delete active configuration</div>
+                        <div class="card-subtitle">Select, create, or delete active configuration. <span style="color: var(--warning); margin-left: 5px;">(<strong>default.json</strong> serves as FailSafe fallback)</span></div>
                     </div>
                 </div>
                 <div class="grid-2" style="align-items: flex-end;">
@@ -375,6 +383,28 @@
                     </div>
                 </div>
                 <div class="config-display" id="config-json">Loading...</div>
+            </div>
+        </section>
+
+        <!-- History -->
+        <section id="history" class="page">
+            <div class="page-header">
+                <h2>Configuration History</h2>
+                <p>View and restore previous configuration states</p>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Debug Logs</div>
+                        <div class="card-subtitle">Historical configuration snapshots (for debugging only)</div>
+                    </div>
+                </div>
+                <div class="status-row" style="margin-bottom: 16px;">
+                    <p style="color: var(--text-muted); font-size: 13px;">
+                        The configuration history feature is strictly used by the backend to write config snapshots to the <code>.config_history</code> directory. Manual configuration restoration is disabled by design.
+                    </p>
+                </div>
             </div>
         </section>
 

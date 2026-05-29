@@ -20,12 +20,19 @@ class ConfigManager:
     def __init__(self, bootstrap_path: str) -> None:
         self._bootstrap_path = Path(bootstrap_path)
         self._logger = logging.getLogger("ehistorian_gateway.config")
-        self._history_dir = self._bootstrap_path.parent / ".config_history"
-        self._history_dir.mkdir(parents=True, exist_ok=True)
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        cache_dir = base_dir / "cache"
+        
+        self._current_active_path = cache_dir / "current_active.json"
+        self._history_dir = cache_dir / "config_history"
         self._latest_history_path = self._history_dir / "latest.json"
         self._bootstrap_config = self._load_bootstrap()
         self._current_config: GatewayConfig | None = None
         self._config_hash: str | None = None
+        self._server_cb = None
+
+    def set_server_circuit_breaker(self, cb) -> None:
+        self._server_cb = cb
 
     @property
     def bootstrap(self) -> BootstrapConfig:
@@ -40,34 +47,29 @@ class ConfigManager:
     async def load_initial(self) -> GatewayConfig:
         remote = await self._try_fetch_remote_config()
         if remote is not None:
-            self._set_current(remote)
-            self._save_config_snapshot(remote)
-            return remote
+            if await self._test_sql_connections(remote):
+                self._set_current(remote)
+                self._save_current_active(remote)
+                self._save_config_snapshot(remote)
+                return remote
+            else:
+                self._logger.critical("Remote config failed Try-Before-Commit tests. Discarding.")
 
-        local_history = self._load_latest_history_config()
-        if local_history is not None:
-            self._set_current(local_history)
-            self._logger.warning("Using last known local history config because remote config fetch failed")
-            return local_history
+        active = self._load_current_active()
+        if active is not None:
+            self._set_current(active)
+            self._logger.warning("Using current_active.json config (Last Known Good Config)")
+            return active
 
-        try:
-            local = self._load_local_gateway_config()
-            self._set_current(local)
-            self._save_config_snapshot(local)
-            self._logger.warning("Using local bootstrap config because remote config fetch failed")
-            return local
-        except Exception:
-            fallback = self._default_gateway_config()
-            self._set_current(fallback)
-            self._logger.warning("Using safe default config because no local config or remote config is available")
-            self._save_config_snapshot(fallback)
-            return fallback
+        fallback = self._default_gateway_config()
+        self._set_current(fallback)
+        self._logger.warning("Using hardcoded safe default config")
+        return fallback
 
     async def watch(self, stop_event: asyncio.Event, on_change: ConfigCallback) -> None:
         while not stop_event.is_set():
-            refresh_seconds = self._current_config.config_refresh_seconds if self._current_config else 30.0
             try:
-                await asyncio.wait_for(stop_event.wait(), timeout=refresh_seconds)
+                await asyncio.wait_for(stop_event.wait(), timeout=300.0)
                 continue
             except asyncio.TimeoutError:
                 pass
@@ -80,12 +82,20 @@ class ConfigManager:
             if new_hash == self._config_hash:
                 continue
 
-            self._set_current(remote)
-            self._save_config_snapshot(remote)
-            self._logger.info("Gateway configuration changed", extra={"gateway_id": remote.gateway_id})
-            await on_change(remote)
+            if await self._test_sql_connections(remote):
+                self._set_current(remote)
+                self._save_current_active(remote)
+                self._save_config_snapshot(remote)
+                self._logger.info("Gateway configuration changed", extra={"gateway_id": remote.gateway_id})
+                await on_change(remote)
+            else:
+                self._logger.critical("Remote config failed Try-Before-Commit tests. Discarding.")
 
     async def _try_fetch_remote_config(self) -> GatewayConfig | None:
+        if self._server_cb is not None and not await self._server_cb.can_execute():
+            self._logger.debug("Skipping config fetch because Server Circuit Breaker is OPEN")
+            return None
+
         endpoint = f"{str(self._bootstrap_config.api_url).rstrip('/')}/api/ehistorian/gateway/config/{self._bootstrap_config.gateway_id}"
         def fetch():
             req = urllib.request.Request(endpoint)
@@ -98,8 +108,12 @@ class ConfigManager:
                     "Remote config fetch failed",
                     extra={"status": status, "body": body.decode('utf-8', 'ignore')[:1000], "gateway_id": self._bootstrap_config.gateway_id},
                 )
+                if self._server_cb is not None:
+                    await self._server_cb.record_failure()
                 return None
             payload = json.loads(body)
+            if self._server_cb is not None:
+                await self._server_cb.record_success()
             return GatewayConfig.from_mapping(payload)
         except urllib.error.HTTPError as exc:
             body = exc.read().decode('utf-8', 'ignore')
@@ -107,9 +121,13 @@ class ConfigManager:
                 "Remote config fetch failed",
                 extra={"status": exc.code, "body": body[:1000], "gateway_id": self._bootstrap_config.gateway_id},
             )
+            if self._server_cb is not None:
+                await self._server_cb.record_failure()
             return None
         except Exception as exc:
             self._logger.warning("Remote config fetch error", extra={"error": str(exc), "gateway_id": self._bootstrap_config.gateway_id})
+            if self._server_cb is not None:
+                await self._server_cb.record_failure()
             return None
 
     def _load_bootstrap(self) -> BootstrapConfig:
@@ -146,10 +164,44 @@ class ConfigManager:
                 continue
         return None
 
+    def _save_current_active(self, config: GatewayConfig) -> None:
+        try:
+            payload = config.to_dict()
+            self._current_active_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception as exc:
+            self._logger.warning("Failed to save current active config", extra={"error": str(exc)})
+
+    def _load_current_active(self) -> GatewayConfig | None:
+        if self._current_active_path.exists():
+            try:
+                payload = json.loads(self._current_active_path.read_text(encoding="utf-8"))
+                return GatewayConfig.from_mapping(payload)
+            except Exception:
+                self._logger.warning("Failed to read current_active.json, ignoring")
+        return None
+
+    async def _test_sql_connections(self, config: GatewayConfig) -> bool:
+        from ehistorian_gateway.sql.sql_client import SqlClient
+        for sql_conf in config.sql:
+            try:
+                client = SqlClient(sql_conf)
+                await client.test_connection()
+            except Exception as exc:
+                self._logger.critical(
+                    f"Config validation failed for SQL asset {sql_conf.asset_id}", 
+                    extra={"error": str(exc), "gateway_id": config.gateway_id}
+                )
+                return False
+        return True
+
     def _save_config_snapshot(self, config: GatewayConfig) -> None:
+        self._history_dir.mkdir(parents=True, exist_ok=True)
         payload = config.to_dict()
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        snapshot_path = self._history_dir / f"config_{timestamp}.json"
+        payload["_snapshot_timestamp"] = datetime.now(timezone.utc).isoformat()
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        snapshot_name = f"config_{timestamp}.json"
+        snapshot_path = self._history_dir / snapshot_name
         try:
             snapshot_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
             self._latest_history_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -168,7 +220,7 @@ class ConfigManager:
     @staticmethod
     def _default_gateway_config() -> GatewayConfig:
         return GatewayConfig(
-            gateway_id="unknown",
+            gateway_id="line-01-secret",
             api_url="http://localhost:5000",
             opcua=[],
             sql=[],
