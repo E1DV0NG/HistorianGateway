@@ -9,6 +9,14 @@ from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
+from flask_cors import logging
+
+# ── TEST ONLY: CAN BE EASILY DELETED ──
+try:
+    from test_component import attach_test_routes, is_outage_simulated
+except ImportError:
+    def is_outage_simulated(): return False
+# ── END TEST ONLY ──
 
 # ui/ je ve stejne slozce jako tento soubor
 BASE_DIR = Path(__file__).parent
@@ -207,6 +215,23 @@ def get_profiles():
         'active': get_active_profile_name(),
         'profiles': sorted(jsons)
     })
+
+@app.route('/api/profiles/active', methods=['POST'])
+def set_active_profile():
+    data = request.get_json() or {}
+    name = data.get('name')
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    if not name.endswith('.json'):
+        name += '.json'
+    
+    path = CONFIGS_DIR / name
+    if not path.exists():
+        return jsonify({'error': 'Profile does not exist'}), 404
+        
+    ACTIVE_PROFILE_FILE.write_text(name, encoding='utf-8')
+    log_activity(f"Active profile set to: {name}", 'ok')
+    return jsonify({'status': 'ok', 'active': name})
 
 @app.route('/api/profiles', methods=['POST'])
 def create_profile():
@@ -680,22 +705,6 @@ def export_logs_excel():
 
 
 # ── TEST ONLY: CAN BE EASILY DELETED ──
-SIMULATE_OUTAGE = False
-GATEWAY_BUFFER_STATUS = {'bytesSize': 0, 'pendingCount': 0, 'maxBytes': 5000}
-
-@app.route('/api/simulate-outage', methods=['GET', 'POST'])
-def toggle_outage():
-    global SIMULATE_OUTAGE
-    if request.method == 'POST':
-        data = request.get_json() or {}
-        SIMULATE_OUTAGE = bool(data.get('enabled', False))
-        log_activity(f"Simulated server outage is now {'ENABLED' if SIMULATE_OUTAGE else 'DISABLED'}", 'warn' if SIMULATE_OUTAGE else 'ok')
-        return jsonify({'status': 'ok', 'enabled': SIMULATE_OUTAGE})
-    return jsonify({'enabled': SIMULATE_OUTAGE})
-
-@app.route('/api/ehistorian/gateway/buffer-status', methods=['GET', 'POST'])
-def gateway_buffer_status():
-    global GATEWAY_BUFFER_STATUS
     if request.method == 'POST':
         data = request.get_json() or {}
         GATEWAY_BUFFER_STATUS['bytesSize'] = data.get('bytesSize', 0)
@@ -722,8 +731,7 @@ def get_gateway_config(gateway_id):
 
 @app.route('/api/ehistorian/gateway/ingest', methods=['POST'])
 def ingest():
-    global SIMULATE_OUTAGE
-    if SIMULATE_OUTAGE:
+    if is_outage_simulated():
         print("[OUTAGE SIMULATION] Rejecting ingest request from gateway")
         return jsonify({'status': 'Rejected', 'error': 'Simulated Outage'}), 503
 
@@ -759,6 +767,13 @@ def ingest():
         'status': 'Accepted'
     })
 
+
+# ── TEST ONLY: CAN BE EASILY DELETED ──
+try:
+    attach_test_routes(app, load_config, BASE_DIR)
+except NameError:
+    pass
+# ── END TEST ONLY ──
 
 # ── Entry point ──────────────────────────────────────────
 if __name__ == '__main__':

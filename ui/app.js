@@ -20,10 +20,7 @@ window.addEventListener("load", () => {
   updateStatus();
   setInterval(updateStatus, 2000);
   setInterval(pollServerActivity, 2000);
-  // ── TEST ONLY: CAN BE EASILY DELETED ──
-  updateOutageAndBufferStatus();
-  setInterval(updateOutageAndBufferStatus, 2000);
-  // ── END TEST ONLY ──
+
   loadProfiles();
   loadLogs();
   fetchDeviceIp();
@@ -192,6 +189,8 @@ function updateStatus() {
     })
     .catch(() => {});
 }
+
+
 
 function setDot(name, running) {
   const dot = document.getElementById(`${name}-dot`);
@@ -410,6 +409,8 @@ function loadConfig() {
       currentConfig = config;
       document.getElementById("gatewayId").value = config.gatewayId || "";
       document.getElementById("apiUrl").value = config.apiUrl || "";
+      const bufferInput = document.getElementById("offlineBufferMaxBytes");
+      if (bufferInput) bufferInput.value = config.offlineBufferMaxBytes || 10485760;
       renderSources();
       logActivity(`Config loaded — ${currentProfile}: GW=${config.gatewayId}, SQL=${(config.sql||[]).length}, OPC UA=${(config.opcua||[]).length}`, 'info');
     })
@@ -419,6 +420,10 @@ function loadConfig() {
 function saveConfig() {
   currentConfig.gatewayId = document.getElementById("gatewayId").value;
   currentConfig.apiUrl = document.getElementById("apiUrl").value;
+  const bufferInput = document.getElementById("offlineBufferMaxBytes");
+  if (bufferInput && bufferInput.value) {
+    currentConfig.offlineBufferMaxBytes = parseInt(bufferInput.value, 10);
+  }
 
   fetch("/api/config", {
     method: "POST",
@@ -902,8 +907,15 @@ function updateOutageAndBufferStatus() {
       const pct = Math.min(100, Math.round((usedBytes / maxBytes) * 100));
 
       if (sizeEl) {
-        const label = usedBytes >= 1024 ? `${(usedBytes/1024).toFixed(1)} KB` : `${usedBytes} B`;
-        const maxLabel = maxBytes >= 1024 ? `${(maxBytes/1024).toFixed(1)} KB` : `${maxBytes} B`;
+        const formatBytes = (bytes) => {
+          if (bytes === 0) return '0 B';
+          const k = 1024;
+          const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        };
+        const label = formatBytes(usedBytes);
+        const maxLabel = formatBytes(maxBytes);
         sizeEl.textContent = `${label} / ${maxLabel} (${pct}%)`;
         sizeEl.style.color = pct >= 100 ? 'var(--danger)' : pct >= 75 ? 'var(--warning)' : 'var(--success)';
       }

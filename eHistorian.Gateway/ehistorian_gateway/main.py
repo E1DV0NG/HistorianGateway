@@ -23,6 +23,13 @@ from ehistorian_gateway.storage.sqlite_queue import SQLiteQueue
 from ehistorian_gateway.utils.circuit_breaker import CircuitBreaker
 from ehistorian_gateway.utils.logging import configure_logging
 
+# ── TEST ONLY: CAN BE EASILY DELETED ──
+try:
+    from ehistorian_gateway.test_component import test_buffer_status_reporter
+except ImportError:
+    test_buffer_status_reporter = None
+# ── END TEST ONLY ──
+
 
 @dataclass(slots=True)
 class RuntimeMetrics:
@@ -95,10 +102,18 @@ class GatewayApplication:
             asyncio.create_task(normalizer.run(self._stop_event)),
             asyncio.create_task(batcher.run(self._stop_event)),
             asyncio.create_task(self._sender_loop()),
-            # ── TEST ONLY: CAN BE EASILY DELETED ──
-            asyncio.create_task(self._test_buffer_status_reporter()),
-            # ── END TEST ONLY ──
         ]
+        
+        # ── TEST ONLY: CAN BE EASILY DELETED ──
+        if test_buffer_status_reporter is not None:
+            self._background_tasks.append(
+                asyncio.create_task(test_buffer_status_reporter(
+                    self._sqlite_queue, str(self.current_config.api_url), 
+                    self.current_config.gateway_id, self.current_config.offline_buffer_max_bytes, self._stop_event
+                ))
+            )
+        # ── END TEST ONLY ──
+        
         await self._restart_collectors(self.current_config)
 
     @property
@@ -212,43 +227,6 @@ class GatewayApplication:
                         "error": str(exc),
                     },
                 )
-
-    # ── TEST ONLY: CAN BE EASILY DELETED ──
-    async def _test_buffer_status_reporter(self) -> None:
-        while not self._stop_event.is_set():
-            try:
-                if self._sqlite_queue is not None:
-                    bytes_size = await self._sqlite_queue.total_bytes_size()
-                    pending_count = await self._sqlite_queue.pending_count()
-                    url = f"{str(self.current_config.api_url).rstrip('/')}/api/ehistorian/gateway/buffer-status"
-                    
-                    import urllib.request
-                    import json
-                    payload = {
-                        "gatewayId": self.current_config.gateway_id,
-                        "bytesSize": bytes_size,
-                        "pendingCount": pending_count,
-                        "maxBytes": self.current_config.offline_buffer_max_bytes
-                    }
-                    data = json.dumps(payload).encode("utf-8")
-                    req = urllib.request.Request(
-                        url,
-                        data=data,
-                        headers={"Content-Type": "application/json"},
-                        method="POST"
-                    )
-                    def send():
-                        try:
-                            with urllib.request.urlopen(req, timeout=2) as r:
-                                r.read()
-                        except Exception:
-                            pass
-                    await asyncio.to_thread(send)
-            except Exception:
-                pass
-            await asyncio.sleep(1.0)
-    # ── END TEST ONLY ──
-
 
     async def _run_health_server(self) -> None:
         async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:

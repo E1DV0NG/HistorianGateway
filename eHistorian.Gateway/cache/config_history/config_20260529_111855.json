@@ -1,36 +1,37 @@
 {
-  "apiUrl": "http://localhost:5000",
-  "batchFlushIntervalSeconds": 3,
-  "batchSize": 500,
-  "configRefreshSeconds": 30,
   "gatewayId": "line-01-secret",
-  "healthHost": "0.0.0.0",
-  "healthPort": 8088,
-  "offlineBufferMaxBytes": 5000,
+  "apiUrl": "http://localhost:5000",
   "opcua": [],
-  "queueMaxsize": 10000,
-  "requestTimeoutSeconds": 15,
-  "retryBaseSeconds": 1,
-  "retryMaxSeconds": 60,
   "sql": [
     {
       "assetId": 201,
       "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=admin123.;Encrypt=yes;Connection Timeout=30;TrustServerCertificate=yes;",
-      "pollingMs": 5000,
       "table": "CurrentValues",
       "tagColumn": "TagName",
+      "valueColumn": "Value",
       "timestampColumn": "UpdatedAt",
-      "valueColumn": "Value"
+      "pollingMs": 5000
     },
     {
       "assetId": 202,
       "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=admin123.;Encrypt=yes;Connection Timeout=30;TrustServerCertificate=yes;",
-      "pollingMs": 5000,
       "table": "CurrentValuesLine2",
       "tagColumn": "TagName",
+      "valueColumn": "Value",
       "timestampColumn": "UpdatedAt",
-      "valueColumn": "Value"
+      "pollingMs": 5000
     }
   ],
-  "sqlitePath": "data/offline-buffer.db"
+  "batchSize": 500,
+  "batchFlushIntervalSeconds": 3,
+  "configRefreshSeconds": 30,
+  "queueMaxsize": 10000,
+  "sqlitePath": "data/offline-buffer.db",
+  "offlineBufferMaxBytes": 5000,
+  "requestTimeoutSeconds": 15,
+  "retryBaseSeconds": 1,
+  "retryMaxSeconds": 60,
+  "healthHost": "0.0.0.0",
+  "healthPort": 8088,
+  "_snapshot_timestamp": "2026-05-29T09:18:55.879565+00:00"
 }

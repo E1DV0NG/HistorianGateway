@@ -12,6 +12,13 @@ import urllib.error
 
 from ehistorian_gateway.models.config import BootstrapConfig, GatewayConfig
 
+# ── TEST ONLY: CAN BE EASILY DELETED ──
+try:
+    from ehistorian_gateway.test_component import report_config_status
+except ImportError:
+    async def report_config_status(*args, **kwargs): pass
+# ── END TEST ONLY ──
+
 
 ConfigCallback = Callable[[GatewayConfig], Awaitable[None]]
 
@@ -82,14 +89,27 @@ class ConfigManager:
             if new_hash == self._config_hash:
                 continue
 
+            # ── TEST ONLY: CAN BE EASILY DELETED ──
+            await report_config_status(self._bootstrap_config.api_url, self._bootstrap_config.gateway_id, "testing")
+            # ── END TEST ONLY ──
+            
             if await self._test_sql_connections(remote):
                 self._set_current(remote)
                 self._save_current_active(remote)
                 self._save_config_snapshot(remote)
                 self._logger.info("Gateway configuration changed", extra={"gateway_id": remote.gateway_id})
+                
+                # ── TEST ONLY: CAN BE EASILY DELETED ──
+                await report_config_status(self._bootstrap_config.api_url, self._bootstrap_config.gateway_id, "synchronized")
+                # ── END TEST ONLY ──
+                
                 await on_change(remote)
             else:
                 self._logger.critical("Remote config failed Try-Before-Commit tests. Discarding.")
+                
+                # ── TEST ONLY: CAN BE EASILY DELETED ──
+                await report_config_status(self._bootstrap_config.api_url, self._bootstrap_config.gateway_id, "rejected", "SQL connections failed Try-Before-Commit tests.")
+                # ── END TEST ONLY ──
 
     async def _try_fetch_remote_config(self) -> GatewayConfig | None:
         if self._server_cb is not None and not await self._server_cb.can_execute():

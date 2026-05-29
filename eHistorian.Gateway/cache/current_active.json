@@ -23,14 +23,14 @@
     }
   ],
   "batchSize": 500,
-  "batchFlushIntervalSeconds": 3.0,
-  "configRefreshSeconds": 30.0,
+  "batchFlushIntervalSeconds": 3,
+  "configRefreshSeconds": 30,
   "queueMaxsize": 10000,
   "sqlitePath": "data/offline-buffer.db",
   "offlineBufferMaxBytes": 5000,
-  "requestTimeoutSeconds": 15.0,
-  "retryBaseSeconds": 1.0,
-  "retryMaxSeconds": 60.0,
+  "requestTimeoutSeconds": 15,
+  "retryBaseSeconds": 1,
+  "retryMaxSeconds": 60,
   "healthHost": "0.0.0.0",
   "healthPort": 8088
 }
