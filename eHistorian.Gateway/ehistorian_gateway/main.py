@@ -20,6 +20,7 @@ from ehistorian_gateway.sender.rest_client import RestClient
 from ehistorian_gateway.sender.retry import RetryPolicy
 from ehistorian_gateway.sql.sql_poller import SqlPoller
 from ehistorian_gateway.storage.sqlite_queue import SQLiteQueue
+from ehistorian_gateway.utils.circuit_breaker import CircuitBreaker
 from ehistorian_gateway.utils.logging import configure_logging
 
 
@@ -51,6 +52,10 @@ class GatewayApplication:
         self._collector_handles: list[CollectorHandle] = []
         self._config_lock = asyncio.Lock()
         self._background_tasks: list[asyncio.Task[None]] = []
+        self._server_cb = CircuitBreaker("server", timeout_seconds=30.0)
+        self._config_manager.set_server_circuit_breaker(self._server_cb)
+        self._sql_polling_allowed = asyncio.Event()
+        self._sql_polling_allowed.set()
 
     async def run(self) -> None:
         initial_config = await self._config_manager.load_initial()
@@ -121,7 +126,7 @@ class GatewayApplication:
 
         for index, sql_config in enumerate(config.sql):
             stop_event = asyncio.Event()
-            poller = SqlPoller(f"sql-{index}:asset-{sql_config.asset_id}:{sql_config.table}", sql_config, self._source_bus, stop_event)
+            poller = SqlPoller(f"sql-{index}:asset-{sql_config.asset_id}:{sql_config.table}", sql_config, self._source_bus, stop_event, self._sql_polling_allowed)
             handles.append(CollectorHandle(asyncio.create_task(poller.run()), stop_event))
 
         self._collector_handles = handles
@@ -149,6 +154,23 @@ class GatewayApplication:
         assert self._retry_policy is not None
 
         while not self._stop_event.is_set():
+            current_bytes = await self._sqlite_queue.total_bytes_size()
+            if current_bytes >= 10 * 1024 * 1024:
+                if self._sql_polling_allowed.is_set():
+                    self._logger.warning("Buffer size >= 10MB, enabling backpressure (stopping SQL polling)")
+                    self._sql_polling_allowed.clear()
+            else:
+                if not self._sql_polling_allowed.is_set():
+                    self._logger.info("Buffer size < 10MB, releasing backpressure")
+                    self._sql_polling_allowed.set()
+
+            if not await self._server_cb.can_execute():
+                try:
+                    await asyncio.wait_for(self._stop_event.wait(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    pass
+                continue
+
             batch = await self._sqlite_queue.lease_next_batch()
             if batch is None:
                 try:
@@ -159,6 +181,7 @@ class GatewayApplication:
 
             try:
                 await self._rest_client.send_batch(str(self.current_config.api_url), batch)
+                await self._server_cb.record_success()
                 await self._sqlite_queue.mark_sent(batch.batch_id)
                 self._metrics.last_successful_send_at = datetime.now(timezone.utc).isoformat()
                 self._logger.info(
@@ -166,6 +189,7 @@ class GatewayApplication:
                     extra={"batch_id": batch.batch_id, "batch_size": len(batch.events), "gateway_id": batch.gateway_id},
                 )
             except Exception as exc:
+                await self._server_cb.record_failure()
                 self._metrics.retry_count += 1
                 delay = self._retry_policy.compute_delay(batch.attempts + 1)
                 await self._sqlite_queue.mark_retry(batch.batch_id, str(exc), delay)

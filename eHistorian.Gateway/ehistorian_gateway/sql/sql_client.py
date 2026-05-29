@@ -59,6 +59,17 @@ class SqlClient:
                 )
             return records
 
+    async def test_connection(self) -> None:
+        await asyncio.to_thread(self._test_connection_sync)
+
+    def _test_connection_sync(self) -> None:
+        if pyodbc is None:
+            raise RuntimeError("pyodbc module is not installed.")
+        query = f"SELECT TOP 1 1 FROM [{self._config.table}]"
+        with pyodbc.connect(self._config.connection_string, timeout=5) as connection:
+            cursor = connection.cursor()
+            cursor.execute(query).fetchall()
+
     @staticmethod
     def _validate_identifier(identifier: str) -> None:
         if not IDENTIFIER_PATTERN.match(identifier):
