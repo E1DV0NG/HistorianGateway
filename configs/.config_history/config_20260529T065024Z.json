@@ -5,7 +5,7 @@
   "sql": [
     {
       "assetId": 201,
-      "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=admin123.;Encrypt=yes;Connection Timeout=30;TrustServerCertificate=yes;",
+      "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=localhost\\SQLEXPRESS06;Database=eFactory;Trusted_Connection=yes;Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=30;",
       "table": "CurrentValues",
       "tagColumn": "TagName",
       "valueColumn": "Value",
@@ -14,7 +14,7 @@
     },
     {
       "assetId": 202,
-      "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=admin123.;Encrypt=yes;Connection Timeout=30;TrustServerCertificate=yes;",
+      "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=localhost\\SQLEXPRESS06;Database=eFactory;Trusted_Connection=yes;Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=30;",
       "table": "CurrentValuesLine2",
       "tagColumn": "TagName",
       "valueColumn": "Value",
@@ -27,7 +27,7 @@
   "configRefreshSeconds": 30.0,
   "queueMaxsize": 10000,
   "sqlitePath": "data/offline-buffer.db",
-  "offlineBufferMaxBytes": 5000,
+  "offlineBufferMaxBytes": 10485760,
   "requestTimeoutSeconds": 15.0,
   "retryBaseSeconds": 1.0,
   "retryMaxSeconds": 60.0,

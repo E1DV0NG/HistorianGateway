@@ -27,7 +27,7 @@
   "configRefreshSeconds": 30.0,
   "queueMaxsize": 10000,
   "sqlitePath": "data/offline-buffer.db",
-  "offlineBufferMaxBytes": 10485760,
+  "offlineBufferMaxBytes": 5000,
   "requestTimeoutSeconds": 15.0,
   "retryBaseSeconds": 1.0,
   "retryMaxSeconds": 60.0,
