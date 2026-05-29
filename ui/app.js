@@ -20,6 +20,10 @@ window.addEventListener("load", () => {
   updateStatus();
   setInterval(updateStatus, 2000);
   setInterval(pollServerActivity, 2000);
+  // ── TEST ONLY: CAN BE EASILY DELETED ──
+  updateOutageAndBufferStatus();
+  setInterval(updateOutageAndBufferStatus, 2000);
+  // ── END TEST ONLY ──
   loadProfiles();
   loadLogs();
   fetchDeviceIp();
@@ -858,3 +862,74 @@ function notify(msg, isError = false) {
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+// ── TEST ONLY: CAN BE EASILY DELETED ──
+let simulatedOutageEnabled = false;
+
+function updateOutageAndBufferStatus() {
+  // Fetch simulated outage status
+  fetch('/api/simulate-outage')
+    .then(r => r.json())
+    .then(data => {
+      simulatedOutageEnabled = data.enabled;
+      const statusEl = document.getElementById('outage-simulation-status');
+      const btnEl = document.getElementById('toggle-outage-btn');
+      if (statusEl && btnEl) {
+        if (simulatedOutageEnabled) {
+          statusEl.textContent = "ACTIVE (Server is Down)";
+          statusEl.style.color = "var(--danger)";
+          btnEl.textContent = "Restore Server Connection";
+          btnEl.className = "btn-success btn-full";
+        } else {
+          statusEl.textContent = "Inactive (Server is Online)";
+          statusEl.style.color = "var(--success)";
+          btnEl.textContent = "Simulate Server Outage";
+          btnEl.className = "btn-danger btn-full";
+        }
+      }
+    })
+    .catch(() => {});
+
+  // Fetch gateway buffer status
+  fetch('/api/ehistorian/gateway/buffer-status')
+    .then(r => r.json())
+    .then(data => {
+      const sizeEl = document.getElementById('outage-buffer-size');
+      const countEl = document.getElementById('outage-buffer-count');
+      const barEl = document.getElementById('outage-buffer-bar');
+      const maxBytes = data.maxBytes || 5000;
+      const usedBytes = data.bytesSize || 0;
+      const pct = Math.min(100, Math.round((usedBytes / maxBytes) * 100));
+
+      if (sizeEl) {
+        const label = usedBytes >= 1024 ? `${(usedBytes/1024).toFixed(1)} KB` : `${usedBytes} B`;
+        const maxLabel = maxBytes >= 1024 ? `${(maxBytes/1024).toFixed(1)} KB` : `${maxBytes} B`;
+        sizeEl.textContent = `${label} / ${maxLabel} (${pct}%)`;
+        sizeEl.style.color = pct >= 100 ? 'var(--danger)' : pct >= 75 ? 'var(--warning)' : 'var(--success)';
+      }
+      if (countEl) {
+        countEl.textContent = data.pendingCount;
+      }
+      if (barEl) {
+        barEl.style.width = `${pct}%`;
+        barEl.style.background = pct >= 100 ? 'var(--danger)' : pct >= 75 ? 'var(--warning)' : 'var(--success)';
+      }
+    })
+    .catch(() => {});
+}
+
+function toggleSimulatedOutage() {
+  fetch('/api/simulate-outage', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: !simulatedOutageEnabled })
+  })
+  .then(r => r.json())
+  .then(data => {
+    updateOutageAndBufferStatus();
+    notify(data.enabled ? "Server outage simulation started" : "Server connection restored");
+  })
+  .catch(() => {});
+}
+// ── END TEST ONLY ──
+

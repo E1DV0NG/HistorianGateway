@@ -679,6 +679,33 @@ def export_logs_excel():
         return jsonify({'error': str(e)}), 500
 
 
+# ── TEST ONLY: CAN BE EASILY DELETED ──
+SIMULATE_OUTAGE = False
+GATEWAY_BUFFER_STATUS = {'bytesSize': 0, 'pendingCount': 0, 'maxBytes': 5000}
+
+@app.route('/api/simulate-outage', methods=['GET', 'POST'])
+def toggle_outage():
+    global SIMULATE_OUTAGE
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        SIMULATE_OUTAGE = bool(data.get('enabled', False))
+        log_activity(f"Simulated server outage is now {'ENABLED' if SIMULATE_OUTAGE else 'DISABLED'}", 'warn' if SIMULATE_OUTAGE else 'ok')
+        return jsonify({'status': 'ok', 'enabled': SIMULATE_OUTAGE})
+    return jsonify({'enabled': SIMULATE_OUTAGE})
+
+@app.route('/api/ehistorian/gateway/buffer-status', methods=['GET', 'POST'])
+def gateway_buffer_status():
+    global GATEWAY_BUFFER_STATUS
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        GATEWAY_BUFFER_STATUS['bytesSize'] = data.get('bytesSize', 0)
+        GATEWAY_BUFFER_STATUS['pendingCount'] = data.get('pendingCount', 0)
+        GATEWAY_BUFFER_STATUS['maxBytes'] = data.get('maxBytes', GATEWAY_BUFFER_STATUS.get('maxBytes', 5000))
+        return jsonify({'status': 'ok'})
+    return jsonify(GATEWAY_BUFFER_STATUS)
+# ── END TEST ONLY ──
+
+
 # ── Routes: Gateway API ──────────────────────────────────
 @app.route('/health', methods=['GET'])
 def health():
@@ -695,6 +722,11 @@ def get_gateway_config(gateway_id):
 
 @app.route('/api/ehistorian/gateway/ingest', methods=['POST'])
 def ingest():
+    global SIMULATE_OUTAGE
+    if SIMULATE_OUTAGE:
+        print("[OUTAGE SIMULATION] Rejecting ingest request from gateway")
+        return jsonify({'status': 'Rejected', 'error': 'Simulated Outage'}), 503
+
     data = request.get_json()
     gateway_id = data.get('gatewayId', 'unknown')
     events = data.get('events', [])

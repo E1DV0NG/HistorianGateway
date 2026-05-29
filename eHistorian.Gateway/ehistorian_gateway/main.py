@@ -95,6 +95,9 @@ class GatewayApplication:
             asyncio.create_task(normalizer.run(self._stop_event)),
             asyncio.create_task(batcher.run(self._stop_event)),
             asyncio.create_task(self._sender_loop()),
+            # ── TEST ONLY: CAN BE EASILY DELETED ──
+            asyncio.create_task(self._test_buffer_status_reporter()),
+            # ── END TEST ONLY ──
         ]
         await self._restart_collectors(self.current_config)
 
@@ -155,13 +158,20 @@ class GatewayApplication:
 
         while not self._stop_event.is_set():
             current_bytes = await self._sqlite_queue.total_bytes_size()
-            if current_bytes >= 10 * 1024 * 1024:
+            max_bytes = self.current_config.offline_buffer_max_bytes
+            if current_bytes >= max_bytes:
                 if self._sql_polling_allowed.is_set():
-                    self._logger.warning("Buffer size >= 10MB, enabling backpressure (stopping SQL polling)")
+                    self._logger.warning(
+                        "Buffer full, enabling backpressure (stopping SQL polling)",
+                        extra={"current_bytes": current_bytes, "max_bytes": max_bytes},
+                    )
                     self._sql_polling_allowed.clear()
             else:
                 if not self._sql_polling_allowed.is_set():
-                    self._logger.info("Buffer size < 10MB, releasing backpressure")
+                    self._logger.info(
+                        "Buffer below limit, releasing backpressure (resuming SQL polling)",
+                        extra={"current_bytes": current_bytes, "max_bytes": max_bytes},
+                    )
                     self._sql_polling_allowed.set()
 
             if not await self._server_cb.can_execute():
@@ -202,6 +212,43 @@ class GatewayApplication:
                         "error": str(exc),
                     },
                 )
+
+    # ── TEST ONLY: CAN BE EASILY DELETED ──
+    async def _test_buffer_status_reporter(self) -> None:
+        while not self._stop_event.is_set():
+            try:
+                if self._sqlite_queue is not None:
+                    bytes_size = await self._sqlite_queue.total_bytes_size()
+                    pending_count = await self._sqlite_queue.pending_count()
+                    url = f"{str(self.current_config.api_url).rstrip('/')}/api/ehistorian/gateway/buffer-status"
+                    
+                    import urllib.request
+                    import json
+                    payload = {
+                        "gatewayId": self.current_config.gateway_id,
+                        "bytesSize": bytes_size,
+                        "pendingCount": pending_count,
+                        "maxBytes": self.current_config.offline_buffer_max_bytes
+                    }
+                    data = json.dumps(payload).encode("utf-8")
+                    req = urllib.request.Request(
+                        url,
+                        data=data,
+                        headers={"Content-Type": "application/json"},
+                        method="POST"
+                    )
+                    def send():
+                        try:
+                            with urllib.request.urlopen(req, timeout=2) as r:
+                                r.read()
+                        except Exception:
+                            pass
+                    await asyncio.to_thread(send)
+            except Exception:
+                pass
+            await asyncio.sleep(1.0)
+    # ── END TEST ONLY ──
+
 
     async def _run_health_server(self) -> None:
         async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:

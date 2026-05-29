@@ -140,6 +140,35 @@
                     </div>
                 </div>
 
+                <!-- Simulated Outage & Buffer (Test Only) -->
+                <div class="card" id="test-buffer-card">
+                    <div class="card-header">
+                        <div>
+                            <div class="card-title">Outage Simulation & Buffer</div>
+                            <div class="card-subtitle">Test only - can be deleted later</div>
+                        </div>
+                    </div>
+                    <div class="status-row" style="margin-bottom: 12px;">
+                        <span class="status-text" style="color: var(--text-dim);">Outage:</span>
+                        <span class="status-text" id="outage-simulation-status" style="font-weight: bold; color: var(--success); margin-left: 5px;">Inactive (Server Online)</span>
+                    </div>
+                    <div class="status-row" style="margin-bottom: 6px;">
+                        <span class="status-text" style="color: var(--text-dim);">Buffer Size:</span>
+                        <span class="status-text" id="outage-buffer-size" style="font-family: var(--mono); color: var(--success); margin-left: 5px;">0 B / 5000 B (0%)</span>
+                    </div>
+                    <div style="background: var(--border); border-radius: 4px; height: 6px; margin-bottom: 12px; overflow: hidden;">
+                        <div id="outage-buffer-bar" style="height: 100%; width: 0%; background: var(--success); border-radius: 4px; transition: width 0.4s ease, background 0.4s ease;"></div>
+                    </div>
+                    <div class="status-row" style="margin-bottom: 12px;">
+                        <span class="status-text" style="color: var(--text-dim);">Pending Batches:</span>
+                        <span class="status-text" id="outage-buffer-count" style="font-family: var(--mono); color: var(--warning); margin-left: 5px;">0</span>
+                    </div>
+                    <div class="divider"></div>
+                    <button class="btn-danger btn-full" id="toggle-outage-btn" onclick="toggleSimulatedOutage()">
+                        Simulate Server Outage
+                    </button>
+                </div>
+
                 <!-- Test -->
                 <div class="card">
                     <div class="card-header">

@@ -27,10 +27,11 @@
   "configRefreshSeconds": 30.0,
   "queueMaxsize": 10000,
   "sqlitePath": "data/offline-buffer.db",
-  "offlineBufferMaxBytes": 5000,
+  "offlineBufferMaxBytes": 10485760,
   "requestTimeoutSeconds": 15.0,
   "retryBaseSeconds": 1.0,
   "retryMaxSeconds": 60.0,
   "healthHost": "0.0.0.0",
-  "healthPort": 8088
+  "healthPort": 8088,
+  "_snapshot_timestamp": "2026-05-29T08:04:09.317700+00:00"
 }
