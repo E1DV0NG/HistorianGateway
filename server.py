@@ -5,6 +5,7 @@ eHistorian Gateway — Unified Server (API + Web UI)
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request
@@ -43,6 +44,17 @@ processes = {
     'gateway': None,
     'fakegen': None,
     'opcuaserver': None
+}
+
+# ── Global statistics ───────────────────────────────────
+global_stats = {
+    "started_at": datetime.utcnow().isoformat() + 'Z',
+    "total_ingested_events": 0,
+    "total_requests": 0,
+    "failed_requests": 0,
+    "tag_counters": {},
+    "last_known_values": {},
+    "request_latencies": [],      # rolling window of last 100 latencies (ms)
 }
 
 # ── Activity log buffer ─────────────────────────────────
@@ -259,6 +271,48 @@ def status():
         'gateway': is_running('gateway'),
         'fakegen': is_running('fakegen'),
         'opcuaserver': is_running('opcuaserver')
+    })
+
+# ── Statistics ─────────────────────────────────────────────
+@app.route('/api/stats', methods=['GET'])
+def get_statistics():
+    # Count log files & total size on disk
+    total_size_bytes = 0
+    file_count = 0
+    try:
+        for f in LOGS_DIR.glob('*.json'):
+            total_size_bytes += f.stat().st_size
+            file_count += 1
+    except Exception:
+        pass
+
+    # Average request latency
+    latencies = global_stats["request_latencies"]
+    avg_latency = round(sum(latencies) / len(latencies), 1) if latencies else 0
+
+    # Throughput: events per minute (estimated from recent window)
+    throughput = 0
+    start_ts = global_stats["started_at"]
+    try:
+        started = datetime.fromisoformat(start_ts.replace('Z', '+00:00'))
+        elapsed_min = max((datetime.now(started.tzinfo) - started).total_seconds() / 60, 1/60)
+        throughput = round(global_stats["total_ingested_events"] / elapsed_min, 1)
+    except Exception:
+        pass
+
+    return jsonify({
+        "serverUptimeStart": global_stats["started_at"],
+        "totalRequests": global_stats["total_requests"],
+        "failedRequests": global_stats["failed_requests"],
+        "totalIngestedEvents": global_stats["total_ingested_events"],
+        "throughputPerMin": throughput,
+        "avgLatencyMs": avg_latency,
+        "logFilesCount": file_count,
+        "logFilesSizeBytes": total_size_bytes,
+        "logFilesSizeReadable": f"{total_size_bytes / 1024:.1f} KB" if total_size_bytes > 1024 else f"{total_size_bytes} B",
+        "activeTagsCount": len(global_stats["tag_counters"]),
+        "tagDistribution": global_stats["tag_counters"],
+        "lastKnownValues": global_stats["last_known_values"]
     })
 
 # Device IP
@@ -679,13 +733,29 @@ def get_gateway_config(gateway_id):
 
 @app.route('/api/ehistorian/gateway/ingest', methods=['POST'])
 def ingest():
+    req_start = time.perf_counter()
+    global_stats["total_requests"] += 1
+
     if is_outage_simulated():
+        global_stats["failed_requests"] += 1
         print("[OUTAGE SIMULATION] Rejecting ingest request from gateway")
         return jsonify({'status': 'Rejected', 'error': 'Simulated Outage'}), 503
 
     data = request.get_json()
     gateway_id = data.get('gatewayId', 'unknown')
     events = data.get('events', [])
+
+    # ── Update statistics ──
+    global_stats["total_ingested_events"] += len(events)
+    for ev in events:
+        t_name = ev.get('tag', 'unknown')
+        global_stats["tag_counters"][t_name] = global_stats["tag_counters"].get(t_name, 0) + 1
+        # Track last known value for each tag
+        global_stats["last_known_values"][t_name] = {
+            "value": ev.get('value'),
+            "timestamp": ev.get('timestamp', datetime.utcnow().isoformat() + 'Z'),
+            "quality": ev.get('quality', 'Unknown')
+        }
 
     log_file = LOGS_DIR / f'ingest_{datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.json'
 
@@ -707,7 +777,13 @@ def ingest():
         )
 
     print(f'[INGEST] {len(events)} events from {gateway_id} -> {log_file.name}')
-    
+
+    # Record latency
+    latency_ms = round((time.perf_counter() - req_start) * 1000, 2)
+    global_stats["request_latencies"].append(latency_ms)
+    if len(global_stats["request_latencies"]) > 100:
+        global_stats["request_latencies"] = global_stats["request_latencies"][-100:]
+
     return jsonify({
         'gatewayId': gateway_id,
         'acceptedCount': len(events),

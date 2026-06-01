@@ -70,6 +70,15 @@
                 </svg>
                 <span class="nav-item-text">Logs</span>
             </div>
+
+            <div class="nav-item" onclick="showPage('statistics', this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="20" x2="18" y2="10" />
+                    <line x1="12" y1="20" x2="12" y2="4" />
+                    <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+                <span class="nav-item-text">Statistika</span>
+            </div>
         </nav>
 
         <div class="sidebar-footer">
@@ -472,6 +481,118 @@
                 </div>
                 <div id="log-viewer-json" class="config-display" style="display: block;"></div>
                 <div id="log-viewer-table" style="display: none; overflow-x: auto;"></div>
+            </div>
+        </section>
+
+        <!-- Statistics -->
+        <section id="statistics" class="page">
+            <div class="page-header">
+                <h2>Statistika</h2>
+                <p>Přehled výkonu, spolehlivosti a senzorových dat v reálném čase</p>
+            </div>
+
+            <!-- Stats Cards Row -->
+            <div class="stats-cards-grid">
+                <!-- Card 1: Total Events -->
+                <div class="stat-card">
+                    <div class="stat-card-icon" style="background: var(--accent-glow); color: var(--accent);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                    </div>
+                    <div class="stat-card-body">
+                        <div class="stat-card-value" id="stat-total-events">0</div>
+                        <div class="stat-card-label">Celkem zpráv</div>
+                        <div class="stat-card-sub" id="stat-throughput">0 událostí/min</div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Log Files -->
+                <div class="stat-card">
+                    <div class="stat-card-icon" style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                    </div>
+                    <div class="stat-card-body">
+                        <div class="stat-card-value" id="stat-log-files">0</div>
+                        <div class="stat-card-label">Historické logy</div>
+                        <div class="stat-card-sub" id="stat-log-size">0 B</div>
+                    </div>
+                </div>
+
+                <!-- Card 3: Error Rate -->
+                <div class="stat-card">
+                    <div class="stat-card-icon" id="stat-error-icon" style="background: var(--success-glow); color: var(--success);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                            <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                    </div>
+                    <div class="stat-card-body">
+                        <div class="stat-card-value" id="stat-errors">0</div>
+                        <div class="stat-card-label">Chybovost</div>
+                        <div class="stat-card-sub" id="stat-error-rate">0% chyb</div>
+                    </div>
+                </div>
+
+                <!-- Card 4: Active Tags -->
+                <div class="stat-card">
+                    <div class="stat-card-icon" style="background: rgba(245, 158, 11, 0.12); color: var(--warning);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                            <line x1="7" y1="7" x2="7.01" y2="7" />
+                        </svg>
+                    </div>
+                    <div class="stat-card-body">
+                        <div class="stat-card-value" id="stat-active-tags">0</div>
+                        <div class="stat-card-label">Aktivní tagy</div>
+                        <div class="stat-card-sub">unikátní senzory</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Secondary Metrics Row -->
+            <div class="stats-secondary-grid">
+                <div class="stat-metric-card">
+                    <div class="stat-metric-label">Uptime serveru</div>
+                    <div class="stat-metric-value" id="stat-uptime">—</div>
+                </div>
+                <div class="stat-metric-card">
+                    <div class="stat-metric-label">Průměrná latence</div>
+                    <div class="stat-metric-value" id="stat-latency">— ms</div>
+                </div>
+                <div class="stat-metric-card">
+                    <div class="stat-metric-label">Celkem požadavků</div>
+                    <div class="stat-metric-value" id="stat-total-requests">0</div>
+                </div>
+            </div>
+
+            <!-- Tag Distribution -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Poslední známé hodnoty senzorů</div>
+                        <div class="card-subtitle">Aktuální stav všech sledovaných tagů</div>
+                    </div>
+                </div>
+                <div id="stats-tags-table">
+                    <div class="empty-state">Zatím žádná data — čekám na příchozí události...</div>
+                </div>
+            </div>
+
+            <!-- Tag Distribution Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Distribuce tagů</div>
+                        <div class="card-subtitle">Počet zpracovaných událostí pro každý senzor</div>
+                    </div>
+                </div>
+                <div id="stats-tag-bars">
+                    <div class="empty-state">Zatím žádná data...</div>
+                </div>
             </div>
         </section>
 

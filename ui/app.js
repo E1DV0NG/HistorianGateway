@@ -19,10 +19,12 @@ window.addEventListener("load", () => {
   updateStatus();
   setInterval(updateStatus, 2000);
   setInterval(pollServerActivity, 2000);
+  setInterval(pollStats, 3000);
 
   loadConfig();
   loadLogs();
   fetchDeviceIp();
+  pollStats();
   // Restore sidebar state
   if (localStorage.getItem('sidebarCollapsed') === 'true') {
     document.body.classList.add('sidebar-collapsed');
@@ -170,6 +172,7 @@ function showPage(id, el) {
   if (el) el.classList.add("active");
 
   if (id === "config-view") renderConfigView();
+  if (id === "statistics") pollStats();
 }
 
 // ── Status ────────────────────────────────────────────────
@@ -807,6 +810,151 @@ function notify(msg, isError = false) {
 
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// ── Statistics ──────────────────────────────────────────
+const TAG_BAR_COLORS = [
+  '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b',
+  '#ef4444', '#06b6d4', '#ec4899', '#84cc16'
+];
+
+function pollStats() {
+  fetch('/api/stats')
+    .then(r => r.json())
+    .then(data => {
+      // Card 1: Total events
+      const el = (id) => document.getElementById(id);
+      el('stat-total-events').textContent = data.totalIngestedEvents.toLocaleString();
+      el('stat-throughput').textContent = `${data.throughputPerMin} událostí/min`;
+
+      // Card 2: Log files
+      el('stat-log-files').textContent = data.logFilesCount.toLocaleString();
+      el('stat-log-size').textContent = data.logFilesSizeReadable;
+
+      // Card 3: Error rate
+      el('stat-errors').textContent = data.failedRequests.toLocaleString();
+      const errPct = data.totalRequests > 0
+        ? ((data.failedRequests / data.totalRequests) * 100).toFixed(1)
+        : 0;
+      el('stat-error-rate').textContent = `${errPct}% chyb`;
+
+      // Swap icon color on errors
+      const errIcon = el('stat-error-icon');
+      if (errIcon) {
+        if (data.failedRequests > 0) {
+          errIcon.style.background = 'var(--danger-glow)';
+          errIcon.style.color = 'var(--danger)';
+        } else {
+          errIcon.style.background = 'var(--success-glow)';
+          errIcon.style.color = 'var(--success)';
+        }
+      }
+
+      // Card 4: Active tags
+      el('stat-active-tags').textContent = data.activeTagsCount;
+
+      // Secondary metrics
+      el('stat-uptime').textContent = formatUptime(data.serverUptimeStart);
+      el('stat-latency').textContent = data.avgLatencyMs > 0 ? `${data.avgLatencyMs} ms` : '— ms';
+      el('stat-total-requests').textContent = data.totalRequests.toLocaleString();
+
+      // Last known values table
+      renderStatsTagTable(data.lastKnownValues);
+
+      // Tag distribution bars
+      renderTagBars(data.tagDistribution);
+    })
+    .catch(() => {});
+}
+
+function formatUptime(startIso) {
+  try {
+    const started = new Date(startIso);
+    const now = new Date();
+    let diff = Math.floor((now - started) / 1000);
+    if (diff < 0) diff = 0;
+
+    const days = Math.floor(diff / 86400);
+    diff %= 86400;
+    const hours = Math.floor(diff / 3600);
+    diff %= 3600;
+    const mins = Math.floor(diff / 60);
+    const secs = diff % 60;
+
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    parts.push(`${mins}m`);
+    parts.push(`${secs}s`);
+    return parts.join(' ');
+  } catch {
+    return '—';
+  }
+}
+
+function renderStatsTagTable(lastKnownValues) {
+  const container = el('stats-tags-table');
+  if (!container) return;
+
+  const tags = Object.keys(lastKnownValues || {});
+  if (tags.length === 0) {
+    container.innerHTML = '<div class="empty-state">Zatím žádná data — čekám na příchozí události...</div>';
+    return;
+  }
+
+  let html = `<table class="stats-sensor-table">
+    <thead><tr>
+      <th>Tag / Senzor</th>
+      <th>Hodnota</th>
+      <th>Kvalita</th>
+      <th>Poslední aktualizace</th>
+    </tr></thead><tbody>`;
+
+  tags.forEach(tag => {
+    const info = lastKnownValues[tag];
+    const val = typeof info.value === 'number' ? info.value.toFixed(2) : info.value;
+    const qualityClass = info.quality === 'Good' ? 'sensor-quality-good' : 'sensor-quality-bad';
+    const ts = info.timestamp ? new Date(info.timestamp).toLocaleString('cs-CZ') : '—';
+
+    html += `<tr>
+      <td><span class="source-tag">${tag}</span></td>
+      <td class="sensor-value">${val}</td>
+      <td><span class="${qualityClass}">${info.quality || '—'}</span></td>
+      <td class="sensor-ts">${ts}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+
+  function el(id) { return document.getElementById(id); }
+}
+
+function renderTagBars(tagDistribution) {
+  const container = document.getElementById('stats-tag-bars');
+  if (!container) return;
+
+  const tags = Object.entries(tagDistribution || {});
+  if (tags.length === 0) {
+    container.innerHTML = '<div class="empty-state">Zatím žádná data...</div>';
+    return;
+  }
+
+  const maxCount = Math.max(...tags.map(([, c]) => c), 1);
+
+  container.innerHTML = tags.map(([name, count], i) => {
+    const pct = Math.max((count / maxCount) * 100, 2);
+    const color = TAG_BAR_COLORS[i % TAG_BAR_COLORS.length];
+    return `
+      <div class="tag-bar-row">
+        <span class="tag-bar-name">${name}</span>
+        <div class="tag-bar-track">
+          <div class="tag-bar-fill" style="width:${pct}%; background:${color};"></div>
+        </div>
+        <span class="tag-bar-count">${count.toLocaleString()}×</span>
+      </div>
+    `;
+  }).join('');
 }
 
 // ── TEST ONLY: CAN BE EASILY DELETED ──
