@@ -487,8 +487,17 @@
         <!-- Statistics -->
         <section id="statistics" class="page">
             <div class="page-header">
-                <h2>Statistika</h2>
-                <p>Přehled výkonu, spolehlivosti a senzorových dat v reálném čase</p>
+                <div>
+                    <h2>Statistika</h2>
+                    <p>Přehled výkonu, spolehlivosti a senzorových dat v reálném čase</p>
+                </div>
+                <button class="btn-danger" id="btn-reset-stats" onclick="resetStats()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 .49-3.79" />
+                    </svg>
+                    Resetovat statistiky
+                </button>
             </div>
 
             <!-- Stats Cards Row -->
@@ -576,6 +585,13 @@
                         <div class="card-title">Poslední známé hodnoty senzorů</div>
                         <div class="card-subtitle">Aktuální stav všech sledovaných tagů</div>
                     </div>
+                    <button class="btn-ghost" onclick="pollStats()" title="Obnovit">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10" />
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                        Refresh
+                    </button>
                 </div>
                 <div id="stats-tags-table">
                     <div class="empty-state">Zatím žádná data — čekám na příchozí události...</div>
@@ -589,6 +605,13 @@
                         <div class="card-title">Distribuce tagů</div>
                         <div class="card-subtitle">Počet zpracovaných událostí pro každý senzor</div>
                     </div>
+                    <button class="btn-ghost" onclick="pollStats()" title="Obnovit">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10" />
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                        Refresh
+                    </button>
                 </div>
                 <div id="stats-tag-bars">
                     <div class="empty-state">Zatím žádná data...</div>
