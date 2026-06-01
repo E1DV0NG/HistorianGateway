@@ -8,12 +8,8 @@
 let currentConfig = {
   gatewayId: "",
   apiUrl: "",
-  opcua: [],
   sql: [],
 };
-
-let currentProfile = "";
-let availableProfiles = [];
 
 // ── Init ────────────────────────────────────────────────
 window.addEventListener("load", () => {
@@ -21,7 +17,7 @@ window.addEventListener("load", () => {
   setInterval(updateStatus, 2000);
   setInterval(pollServerActivity, 2000);
 
-  loadProfiles();
+  loadConfig();
   loadLogs();
   fetchDeviceIp();
   // Restore sidebar state
@@ -307,8 +303,8 @@ function saveFakegenConfig() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(cfg)
   }).then(() => {
-    notify('Fakegen config saved — changes apply on next cycle');
-    logActivity(`Fakegen config saved (interval: ${cfg.intervalSeconds}s, table: ${cfg.table})`, 'ok');
+    notify('Fakegen config saved');
+    logActivity(`Fakegen config saved`, 'ok');
   });
 }
 
@@ -320,7 +316,7 @@ function runTest() {
     .then((data) => {
       if (data.status === "ok") {
         notify("Event sent successfully");
-        logActivity('Test event sent successfully', 'ok');
+        logActivity('Test event success', 'ok');
         setTimeout(loadLogs, 1000);
       } else {
         notify("Error: " + data.message, true);
@@ -328,77 +324,6 @@ function runTest() {
       }
     })
     .catch(() => { notify("Control server not running", true); logActivity('Server not reachable', 'error'); });
-}
-
-// ── Profiles ─────────────────────────────────────────────
-function loadProfiles() {
-  fetch("/api/profiles")
-    .then((r) => r.json())
-    .then((data) => {
-      currentProfile = data.active;
-      availableProfiles = data.profiles;
-      const select = document.getElementById("profile-select");
-      if (select) {
-        select.innerHTML = availableProfiles.map(p => 
-          `<option value="${p}" ${p === currentProfile ? 'selected' : ''}>${p}</option>`
-        ).join("");
-      }
-      loadConfig();
-    })
-    .catch(() => notify("Failed to load profiles", true));
-}
-
-function switchProfile(name) {
-  if (!name || name === currentProfile) return;
-  fetch("/api/profiles/active", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name })
-  }).then(() => {
-    notify(`Switched to profile: ${name}`);
-    logActivity(`Profile switched to: ${name}`, 'process');
-    loadProfiles();
-  });
-}
-
-function createProfile() {
-  let name = prompt("Enter new profile name (e.g. line-2):");
-  if (!name) return;
-  if (!name.endsWith(".json")) name += ".json";
-  
-  fetch("/api/profiles", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.error) { notify(data.error, true); logActivity('Profile create failed: ' + data.error, 'error'); }
-    else {
-      notify(`Profile ${name} created`);
-      logActivity(`Profile created: ${name}`, 'ok');
-      switchProfile(name);
-    }
-  });
-}
-
-function deleteProfile() {
-  if (availableProfiles.length <= 1) {
-    notify("Cannot delete the only profile", true);
-    return;
-  }
-  if (!confirm(`Are you sure you want to delete profile: ${currentProfile}?`)) return;
-  
-  fetch(`/api/profiles/${currentProfile}`, { method: "DELETE" })
-    .then(r => r.json())
-    .then(data => {
-      if (data.error) { notify(data.error, true); logActivity('Profile delete failed: ' + data.error, 'error'); }
-      else {
-        notify("Profile deleted");
-        logActivity(`Profile deleted: ${currentProfile}`, 'warn');
-        loadProfiles();
-      }
-    });
 }
 
 // ── Config Load/Save ────────────────────────────────────
@@ -412,7 +337,7 @@ function loadConfig() {
       const bufferInput = document.getElementById("offlineBufferMaxBytes");
       if (bufferInput) bufferInput.value = config.offlineBufferMaxBytes || 10485760;
       renderSources();
-      logActivity(`Config loaded — ${currentProfile}: GW=${config.gatewayId}, SQL=${(config.sql||[]).length}, OPC UA=${(config.opcua||[]).length}`, 'info');
+      logActivity(`Config loaded — GW=${config.gatewayId}, SQL=${(config.sql||[]).length}`, 'info');
     })
     .catch(() => {});
 }
@@ -431,7 +356,7 @@ function saveConfig() {
     body: JSON.stringify(currentConfig),
   }).then(() => {
     notify("Configuration saved");
-    logActivity(`Config saved — profile: ${currentProfile} (${currentConfig.sql.length} SQL, ${currentConfig.opcua.length} OPC UA)`, 'ok');
+    logActivity(`Config saved (${currentConfig.sql.length} SQL sources)`, 'ok');
   });
 }
 

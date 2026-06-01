@@ -34,7 +34,7 @@ CORS(app)
 # ── Paths ────────────────────────────────────────────────
 CONFIGS_DIR = BASE_DIR / 'configs'
 CONFIGS_DIR.mkdir(exist_ok=True)
-ACTIVE_PROFILE_FILE = BASE_DIR / 'active_profile.txt'
+CONFIG_FILE = CONFIGS_DIR / 'default.json'
 OLD_CONFIG_FILE = BASE_DIR / 'test.config.json'
 
 LOGS_DIR    = BASE_DIR / 'logs'
@@ -43,11 +43,9 @@ LOGS_DIR.mkdir(exist_ok=True)
 FAKEGEN_CONFIG_FILE = BASE_DIR / 'simulator' / 'fakegen_config.json'
 
 # ── Migration ────────────────────────────────────────────
-if OLD_CONFIG_FILE.exists() and not list(CONFIGS_DIR.glob('*.json')):
+if OLD_CONFIG_FILE.exists() and not CONFIG_FILE.exists():
     import shutil
-    shutil.move(str(OLD_CONFIG_FILE), str(CONFIGS_DIR / 'default.json'))
-    if not ACTIVE_PROFILE_FILE.exists():
-        ACTIVE_PROFILE_FILE.write_text('default.json', encoding='utf-8')
+    shutil.move(str(OLD_CONFIG_FILE), str(CONFIG_FILE))
 
 # ── Process handles ─────────────────────────────────────
 processes = {
@@ -72,37 +70,22 @@ def log_activity(msg: str, kind: str = 'info') -> None:
     })
 
 # ── Config helpers ───────────────────────────────────────
-def get_active_profile_name() -> str:
-    if ACTIVE_PROFILE_FILE.exists():
-        name = ACTIVE_PROFILE_FILE.read_text(encoding='utf-8').strip()
-        if (CONFIGS_DIR / name).exists():
-            return name
-    # Fallback to any existing, or default.json
-    jsons = list(CONFIGS_DIR.glob('*.json'))
-    return jsons[0].name if jsons else 'default.json'
-
-def get_active_profile_path() -> Path:
-    return CONFIGS_DIR / get_active_profile_name()
-
-def load_config(profile_name=None) -> dict:
-    path = CONFIGS_DIR / profile_name if profile_name else get_active_profile_path()
-    if path.exists():
+def load_config() -> dict:
+    if CONFIG_FILE.exists():
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception:
             pass
     return {
         "gatewayId": "line-01-secret",
         "apiUrl":    "http://localhost:5000",
-        "opcua":     [],
         "sql":       [],
         "offlineBufferMaxBytes": 10485760
     }
 
-def save_config(config: dict, profile_name=None) -> None:
-    path = CONFIGS_DIR / profile_name if profile_name else get_active_profile_path()
-    with open(path, 'w', encoding='utf-8') as f:
+def save_config(config: dict) -> None:
+    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
 # ── Process helpers ──────────────────────────────────────
@@ -206,68 +189,6 @@ def get_activity():
     entries = [e for e in _activity_log if e['id'] > since_id]
     return jsonify(entries)
 
-# Profiles
-@app.route('/api/profiles', methods=['GET'])
-def get_profiles():
-    jsons = [f.name for f in CONFIGS_DIR.glob('*.json')]
-    if not jsons:
-        jsons = ['default.json']
-    return jsonify({
-        'active': get_active_profile_name(),
-        'profiles': sorted(jsons)
-    })
-
-@app.route('/api/profiles/active', methods=['POST'])
-def set_active_profile():
-    data = request.get_json() or {}
-    name = data.get('name')
-    if not name:
-        return jsonify({'error': 'Name is required'}), 400
-    if not name.endswith('.json'):
-        name += '.json'
-    
-    path = CONFIGS_DIR / name
-    if not path.exists():
-        return jsonify({'error': 'Profile does not exist'}), 404
-        
-    ACTIVE_PROFILE_FILE.write_text(name, encoding='utf-8')
-    log_activity(f"Active profile set to: {name}", 'ok')
-    return jsonify({'status': 'ok', 'active': name})
-
-@app.route('/api/profiles', methods=['POST'])
-def create_profile():
-    data = request.get_json() or {}
-    name = data.get('name')
-    if not name:
-        return jsonify({'error': 'Name is required'}), 400
-    if not name.endswith('.json'):
-        name += '.json'
-    
-    path = CONFIGS_DIR / name
-    if not path.exists():
-        # Create empty template
-        save_config({
-            "gatewayId": "new-gateway",
-            "apiUrl":    "http://localhost:5000",
-            "opcua":     [],
-            "sql":       [],
-            "offlineBufferMaxBytes": 10485760
-        }, profile_name=name)
-    return jsonify({'status': 'created', 'name': name})
-
-@app.route('/api/profiles/<name>', methods=['DELETE'])
-def delete_profile(name: str):
-    if not name.endswith('.json'):
-        name += '.json'
-    if name == get_active_profile_name():
-        return jsonify({'error': 'Cannot delete active profile'}), 400
-        
-    path = CONFIGS_DIR / name
-    if path.exists():
-        path.unlink()
-        return jsonify({'status': 'deleted'})
-    return jsonify({'error': 'Not found'}), 404
-
 # Config (UI)
 @app.route('/api/config', methods=['GET', 'POST'])
 def ui_config():
@@ -276,8 +197,7 @@ def ui_config():
     config_data = request.get_json()
     save_config(config_data)
     sql_count = len(config_data.get('sql', []))
-    opc_count = len(config_data.get('opcua', []))
-    log_activity(f"Config saved — profile: {get_active_profile_name()} | SQL: {sql_count} | OPC UA: {opc_count}", 'ok')
+    log_activity(f"Config saved — SQL sources: {sql_count}", 'ok')
     return jsonify({'status': 'saved'})
 
 # Fix SQL drivers
@@ -394,7 +314,7 @@ def manage_process(name: str):
     if action == 'start':
         if name == 'gateway':
             env = os.environ.copy()
-            env["EHG_BOOTSTRAP_CONFIG"] = str(get_active_profile_path())
+            env["EHG_BOOTSTRAP_CONFIG"] = str(CONFIG_FILE)
             env["EHG_NO_PAUSE"] = "1"
             try:
                 processes[name] = subprocess.Popen(
@@ -730,9 +650,8 @@ def get_gateway_config(gateway_id):
         
     config = load_config()
     sql_count = len(config.get('sql', []))
-    opc_count = len(config.get('opcua', []))
-    log_activity(f"GET config — GW: {gateway_id} | SQL: {sql_count} | OPC UA: {opc_count}", 'info')
-    print(f'[CONFIG] Gateway {gateway_id} requested config (Returning {opc_count} OPC UA, {sql_count} SQL)')
+    log_activity(f"GET config — GW: {gateway_id} | SQL: {sql_count}", 'info')
+    print(f'[CONFIG] Gateway {gateway_id} requested config (Returning {sql_count} SQL sources)')
     return jsonify(config)
 
 @app.route('/api/ehistorian/gateway/ingest', methods=['POST'])
