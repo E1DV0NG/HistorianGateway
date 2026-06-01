@@ -3,15 +3,13 @@
   "apiUrl": "http://localhost:5000",
   "opcua": [
     {
-      "assetId": 101,
-      "url": "opc.tcp://127.0.0.1:4840/freeopcua/server/",
+      "assetId": 301,
+      "url": "opc.tcp://127.0.0.1:4840/free-simulator/",
+      "samplingMs": 1000,
       "tags": [
-        "ns=2;s=Temperature",
-        "ns=2;s=Pressure",
-        "ns=2;s=Flow",
-        "ns=2;s=Level"
-      ],
-      "samplingMs": 1000
+        "ns=2;s=Teplota",
+        "ns=2;s=Tlak"
+      ]
     }
   ],
   "sql": [

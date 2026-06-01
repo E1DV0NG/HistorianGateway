@@ -3,7 +3,7 @@ title eHistorian Central Server & UI
 cd /d "%~dp0"
 
 echo ==================================================
-2: echo   eHistorian Central Server ^& UI (Control Panel)
+echo   eHistorian Central Server ^& UI (Control Panel)
 echo ==================================================
 echo.
 

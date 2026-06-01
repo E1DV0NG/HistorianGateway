@@ -1,50 +1,48 @@
 {
-  "apiUrl": "http://localhost:5000",
-  "batchFlushIntervalSeconds": 3,
-  "batchSize": 500,
-  "configRefreshSeconds": 30,
   "gatewayId": "line-01-secret",
-  "healthHost": "0.0.0.0",
-  "healthPort": 8088,
-  "offlineBufferMaxBytes": 5000,
+  "apiUrl": "http://localhost:5000",
   "opcua": [
     {
-      "assetId": 101,
-      "url": "opc.tcp://127.0.0.1:4840/freeopcua/server/",
+      "assetId": 301,
+      "url": "opc.tcp://127.0.0.1:4840/free-simulator/",
       "samplingMs": 1000,
       "tags": [
-        "ns=2;s=Temperature",
-        "ns=2;s=Pressure",
-        "ns=2;s=Flow",
-        "ns=2;s=Level"
+        "ns=2;s=Teplota",
+        "ns=2;s=Tlak"
       ]
     }
   ],
-  "queueMaxsize": 10000,
-  "requestTimeoutSeconds": 15,
-  "retryBaseSeconds": 1,
-  "retryMaxSeconds": 60,
   "sql": [
     {
       "assetId": 201,
       "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=admin123.;Encrypt=yes;Connection Timeout=30;TrustServerCertificate=yes;",
-      "onChange": 1,
-      "pollingMs": 5000,
       "table": "CurrentValues",
       "tagColumn": "TagName",
+      "valueColumn": "Value",
       "timestampColumn": "UpdatedAt",
-      "valueColumn": "Value"
+      "pollingMs": 5000,
+      "onChange": 1
     },
     {
       "assetId": 202,
       "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=admin123.;Encrypt=yes;Connection Timeout=30;TrustServerCertificate=yes;",
-      "onChange": 1,
-      "pollingMs": 5000,
       "table": "CurrentValuesLine2",
       "tagColumn": "TagName",
+      "valueColumn": "Value",
       "timestampColumn": "UpdatedAt",
-      "valueColumn": "Value"
+      "pollingMs": 5000,
+      "onChange": 1
     }
   ],
-  "sqlitePath": "data/offline-buffer.db"
+  "batchSize": 500,
+  "batchFlushIntervalSeconds": 3,
+  "configRefreshSeconds": 30,
+  "queueMaxsize": 10000,
+  "sqlitePath": "data/offline-buffer.db",
+  "offlineBufferMaxBytes": 5000,
+  "requestTimeoutSeconds": 15,
+  "retryBaseSeconds": 1,
+  "retryMaxSeconds": 60,
+  "healthHost": "0.0.0.0",
+  "healthPort": 8088
 }

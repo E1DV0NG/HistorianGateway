@@ -138,7 +138,7 @@ def stop_process(name: str) -> bool:
                             is_target = True
                         elif name == 'fakegen' and 'fake_data_generator.py' in cmd_str:
                             is_target = True
-                        elif name == 'opcuaserver' and 'fake_opcua_server.py' in cmd_str:
+                        elif name == 'opcuaserver' and 'opc_mock_server.py' in cmd_str:
                             is_target = True
                             
                         if is_target:
@@ -180,7 +180,7 @@ def is_running(name: str) -> bool:
                             return True
                         if name == 'fakegen' and 'fake_data_generator.py' in cmd_str:
                             return True
-                        if name == 'opcuaserver' and 'fake_opcua_server.py' in cmd_str:
+                        if name == 'opcuaserver' and 'opc_mock_server.py' in cmd_str:
                             return True
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     pass
@@ -413,7 +413,7 @@ def manage_process(name: str):
             env["EHG_NO_PAUSE"] = "1"
             try:
                 processes[name] = subprocess.Popen(
-                    'start cmd /c "set EHG_NO_PAUSE=1&&run_fake_opcua_server.bat"',
+                    'start cmd /c "set EHG_NO_PAUSE=1&&run_opc_mock.bat"',
                     shell=True,
                     cwd=str(BASE_DIR),
                     env=env

@@ -3,16 +3,16 @@ title eHistorian Server
 cd /d "%~dp0"
 
 echo ========================================
-echo   eHistorian - Setup ^& Start
+echo   eHistorian - Setup ^& Start (Python 3.13)
 echo ========================================
 echo.
 
-:: 1. Zkontrolovat a vytvorit virtualni prostredi
+:: 1. Zkontrolovat a vytvorit virtualni prostredi pomoci nucene verze 3.13
 if not exist ".venv\Scripts\activate.bat" (
-    echo [1/3] Vytvarim virtualni prostredi ^(.venv^)...
-    python -m venv .venv
+    echo [1/3] Vytvarim virtualni prostredi ^(.venv^) pomoci Python 3.13...
+    py -3.13 -m venv .venv
     if errorlevel 1 (
-        echo [CHYBA] Python neni nainstalovan nebo neni v PATH.
+        echo [CHYBA] Python 3.13 neni nainstalovan nebo neni v PATH.
         pause
         exit /b 1
     )
@@ -31,8 +31,15 @@ if errorlevel 1 (
 :: 3. Nainstalovat vsechny balicky (pip)
 echo [2/3] Instaluji a aktualizuji balicky...
 python -m pip install --upgrade pip -q
-pip install flask flask-cors requests pandas openpyxl psutil -q
-pip install --only-binary :all: pyodbc -q
+pip install flask flask-cors requests pandas openpyxl psutil asyncua cryptography -q
+
+:: Instalace pyodbc pro SQL polling
+echo [INFO] Instaluji SQL ovladace (pyodbc)...
+pip install pyodbc --only-binary :all: -q
+if errorlevel 1 (
+    echo [WARNING] Standardni pyodbc selhalo, zkousim precompiled-pyodbc...
+    pip install precompiled-pyodbc -q
+)
 
 if exist "eHistorian.Gateway\requirements.txt" (
     pip install -r eHistorian.Gateway\requirements.txt -q
