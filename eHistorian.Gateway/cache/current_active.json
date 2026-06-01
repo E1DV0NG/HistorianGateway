@@ -1,7 +1,19 @@
 {
   "gatewayId": "line-01-secret",
   "apiUrl": "http://localhost:5000",
-  "opcua": [],
+  "opcua": [
+    {
+      "assetId": 101,
+      "url": "opc.tcp://127.0.0.1:4840/freeopcua/server/",
+      "tags": [
+        "ns=2;s=Temperature",
+        "ns=2;s=Pressure",
+        "ns=2;s=Flow",
+        "ns=2;s=Level"
+      ],
+      "samplingMs": 1000
+    }
+  ],
   "sql": [
     {
       "assetId": 201,
