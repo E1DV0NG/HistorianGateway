@@ -305,27 +305,7 @@
                 <p>Manage gateway settings and data sources</p>
             </div>
 
-            <!-- Profiles Settings -->
-            <div class="card">
-                <div class="card-header">
-                    <div>
-                        <div class="card-title">Configuration Profile</div>
-                        <div class="card-subtitle">Select, create, or delete active configuration. <span style="color: var(--warning); margin-left: 5px;">(<strong>default.json</strong> serves as FailSafe fallback)</span></div>
-                    </div>
-                </div>
-                <div class="grid-2" style="align-items: flex-end;">
-                    <div class="form-row" style="margin-bottom: 0;">
-                        <label>Active Profile</label>
-                        <select id="profile-select" onchange="switchProfile(this.value)">
-                            <option value="">Loading...</option>
-                        </select>
-                    </div>
-                    <div class="btn-group">
-                        <button class="btn-primary" onclick="createProfile()">+ New Profile</button>
-                        <button class="btn-danger" onclick="deleteProfile()">Delete Current</button>
-                    </div>
-                </div>
-            </div>
+
 
             <!-- Basic Settings -->
             <div class="card">
