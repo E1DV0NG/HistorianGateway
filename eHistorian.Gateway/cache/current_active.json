@@ -5,11 +5,11 @@
     {
       "assetId": 301,
       "url": "opc.tcp://127.0.0.1:4840/free-simulator/",
-      "samplingMs": 1000,
       "tags": [
         "ns=2;s=Teplota",
         "ns=2;s=Tlak"
-      ]
+      ],
+      "samplingMs": 1000
     }
   ],
   "sql": [

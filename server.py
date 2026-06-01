@@ -34,9 +34,60 @@ CORS(app)
 
 LOGS_DIR    = BASE_DIR / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)
+STATS_SNAPSHOT_FILE = LOGS_DIR / 'stats_snapshot.json'
 
 FAKEGEN_CONFIG_FILE = BASE_DIR / 'simulator' / 'fakegen_config.json'
 
+
+def save_stats_snapshot(stats: dict) -> None:
+    """Persist the current statistics snapshot to disk."""
+    try:
+        with open(STATS_SNAPSHOT_FILE, 'w', encoding='utf-8') as f:
+            json.dump(stats, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def build_statistics_payload() -> dict:
+    total_size_bytes = 0
+    file_count = 0
+    try:
+        for f in LOGS_DIR.glob('*.json'):
+            if f.name == STATS_SNAPSHOT_FILE.name:
+                continue
+            total_size_bytes += f.stat().st_size
+            file_count += 1
+    except Exception:
+        pass
+
+    latencies = global_stats["request_latencies"]
+    avg_latency = round(sum(latencies) / len(latencies), 1) if latencies else 0
+
+    throughput = 0
+    start_ts = global_stats["started_at"]
+    try:
+        started = datetime.fromisoformat(start_ts.replace('Z', '+00:00'))
+        elapsed_min = max((datetime.now(started.tzinfo) - started).total_seconds() / 60, 1/60)
+        throughput = round(global_stats["total_ingested_events"] / elapsed_min, 1)
+    except Exception:
+        pass
+
+    payload = {
+        "serverUptimeStart": global_stats["started_at"],
+        "totalRequests": global_stats["total_requests"],
+        "failedRequests": global_stats["failed_requests"],
+        "totalIngestedEvents": global_stats["total_ingested_events"],
+        "throughputPerMin": throughput,
+        "avgLatencyMs": avg_latency,
+        "logFilesCount": file_count,
+        "logFilesSizeBytes": total_size_bytes,
+        "logFilesSizeReadable": f"{total_size_bytes / 1024:.1f} KB" if total_size_bytes > 1024 else f"{total_size_bytes} B",
+        "activeTagsCount": len(global_stats["tag_counters"]),
+        "tagDistribution": global_stats["tag_counters"],
+        "lastKnownValues": global_stats["last_known_values"]
+    }
+    save_stats_snapshot(payload)
+    return payload
 
 
 # ── Process handles ─────────────────────────────────────
@@ -276,44 +327,7 @@ def status():
 # ── Statistics ─────────────────────────────────────────────
 @app.route('/api/stats', methods=['GET'])
 def get_statistics():
-    # Count log files & total size on disk
-    total_size_bytes = 0
-    file_count = 0
-    try:
-        for f in LOGS_DIR.glob('*.json'):
-            total_size_bytes += f.stat().st_size
-            file_count += 1
-    except Exception:
-        pass
-
-    # Average request latency
-    latencies = global_stats["request_latencies"]
-    avg_latency = round(sum(latencies) / len(latencies), 1) if latencies else 0
-
-    # Throughput: events per minute (estimated from recent window)
-    throughput = 0
-    start_ts = global_stats["started_at"]
-    try:
-        started = datetime.fromisoformat(start_ts.replace('Z', '+00:00'))
-        elapsed_min = max((datetime.now(started.tzinfo) - started).total_seconds() / 60, 1/60)
-        throughput = round(global_stats["total_ingested_events"] / elapsed_min, 1)
-    except Exception:
-        pass
-
-    return jsonify({
-        "serverUptimeStart": global_stats["started_at"],
-        "totalRequests": global_stats["total_requests"],
-        "failedRequests": global_stats["failed_requests"],
-        "totalIngestedEvents": global_stats["total_ingested_events"],
-        "throughputPerMin": throughput,
-        "avgLatencyMs": avg_latency,
-        "logFilesCount": file_count,
-        "logFilesSizeBytes": total_size_bytes,
-        "logFilesSizeReadable": f"{total_size_bytes / 1024:.1f} KB" if total_size_bytes > 1024 else f"{total_size_bytes} B",
-        "activeTagsCount": len(global_stats["tag_counters"]),
-        "tagDistribution": global_stats["tag_counters"],
-        "lastKnownValues": global_stats["last_known_values"]
-    })
+    return jsonify(build_statistics_payload())
 
 @app.route('/api/stats/reset', methods=['POST'])
 def reset_statistics():
@@ -324,6 +338,7 @@ def reset_statistics():
     global_stats["last_known_values"] = {}
     global_stats["request_latencies"] = []
     global_stats["started_at"] = datetime.utcnow().isoformat() + "Z"
+    save_stats_snapshot(build_statistics_payload())
     return jsonify({"status": "ok", "message": "Statistics reset successfully"})
 
 # Device IP
@@ -794,6 +809,8 @@ def ingest():
     global_stats["request_latencies"].append(latency_ms)
     if len(global_stats["request_latencies"]) > 100:
         global_stats["request_latencies"] = global_stats["request_latencies"][-100:]
+
+    save_stats_snapshot(build_statistics_payload())
 
     return jsonify({
         'gatewayId': gateway_id,
