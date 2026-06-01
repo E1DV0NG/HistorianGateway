@@ -41,8 +41,7 @@ FAKEGEN_CONFIG_FILE = BASE_DIR / 'simulator' / 'fakegen_config.json'
 # ── Process handles ─────────────────────────────────────
 processes = {
     'gateway': None,
-    'fakegen': None,
-    'opcuaserver': None
+    'fakegen': None
 }
 
 # ── Activity log buffer ─────────────────────────────────
@@ -126,8 +125,6 @@ def stop_process(name: str) -> bool:
                             is_target = True
                         elif name == 'fakegen' and 'fake_data_generator.py' in cmd_str:
                             is_target = True
-                        elif name == 'opcuaserver' and 'fake_opcua_server.py' in cmd_str:
-                            is_target = True
                             
                         if is_target:
                             proc.terminate()
@@ -167,8 +164,6 @@ def is_running(name: str) -> bool:
                         if name == 'gateway' and 'ehistorian_gateway.main' in cmd_str:
                             return True
                         if name == 'fakegen' and 'fake_data_generator.py' in cmd_str:
-                            return True
-                        if name == 'opcuaserver' and 'fake_opcua_server.py' in cmd_str:
                             return True
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     pass
@@ -257,8 +252,7 @@ def fix_drivers():
 def status():
     return jsonify({
         'gateway': is_running('gateway'),
-        'fakegen': is_running('fakegen'),
-        'opcuaserver': is_running('opcuaserver')
+        'fakegen': is_running('fakegen')
     })
 
 # Device IP
@@ -352,23 +346,6 @@ def manage_process(name: str):
             except Exception as e:
                 print(f"[ERROR] Starting {name}: {e}")
                 log_activity(f"Fakegen start failed: {e}", 'error')
-                success = False
-
-        elif name == 'opcuaserver':
-            env = os.environ.copy()
-            env["EHG_NO_PAUSE"] = "1"
-            try:
-                processes[name] = subprocess.Popen(
-                    'start cmd /c "set EHG_NO_PAUSE=1&&run_fake_opcua_server.bat"',
-                    shell=True,
-                    cwd=str(BASE_DIR),
-                    env=env
-                )
-                success = True
-                log_activity(f"OPC UA Simulator started in separate CMD", 'process')
-            except Exception as e:
-                print(f"[ERROR] Starting {name}: {e}")
-                log_activity(f"OPC UA Simulator start failed: {e}", 'error')
                 success = False
 
         else:

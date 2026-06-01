@@ -178,7 +178,7 @@ function updateStatus() {
   fetch("/api/status")
     .then((r) => r.json())
     .then((data) => {
-      ['gateway', 'fakegen', 'opcuaserver'].forEach(name => {
+      ['gateway', 'fakegen'].forEach(name => {
         setDot(name, data[name]);
         if (_prevStatus[name] !== undefined && _prevStatus[name] !== data[name]) {
           logActivity(`${name.charAt(0).toUpperCase()+name.slice(1)} ${data[name] ? 'started' : 'stopped'}`, data[name] ? 'process' : 'warn');
@@ -241,10 +241,6 @@ const stopGateway  = () => processAction("gateway", "stop");
 // Fake Data Generator controls
 const startFakegen = () => processAction("fakegen", "start");
 const stopFakegen  = () => processAction("fakegen", "stop");
-
-// OPC UA Simulator controls
-const startOpcuaServer = () => processAction("opcuaserver", "start");
-const stopOpcuaServer  = () => processAction("opcuaserver", "stop");
 
 function toggleFakegenSettings() {
   const panel = document.getElementById("fakegen-settings");

@@ -7,19 +7,7 @@
   "healthHost": "0.0.0.0",
   "healthPort": 8088,
   "offlineBufferMaxBytes": 5000,
-  "opcua": [
-    {
-      "assetId": 101,
-      "url": "opc.tcp://127.0.0.1:4840/freeopcua/server/",
-      "samplingMs": 1000,
-      "tags": [
-        "ns=2;s=Temperature",
-        "ns=2;s=Pressure",
-        "ns=2;s=Flow",
-        "ns=2;s=Level"
-      ]
-    }
-  ],
+  "opcua": [],
   "queueMaxsize": 10000,
   "requestTimeoutSeconds": 15,
   "retryBaseSeconds": 1,
@@ -28,22 +16,22 @@
     {
       "assetId": 201,
       "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=admin123.;Encrypt=yes;Connection Timeout=30;TrustServerCertificate=yes;",
-      "onChange": 1,
       "pollingMs": 5000,
       "table": "CurrentValues",
       "tagColumn": "TagName",
       "timestampColumn": "UpdatedAt",
-      "valueColumn": "Value"
+      "valueColumn": "Value",
+      "onChange": 1
     },
     {
       "assetId": 202,
       "connectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:efactory-server-karel.database.windows.net,1433;Database=eFactory;Uid=dbadmin;Pwd=admin123.;Encrypt=yes;Connection Timeout=30;TrustServerCertificate=yes;",
-      "onChange": 1,
       "pollingMs": 5000,
       "table": "CurrentValuesLine2",
       "tagColumn": "TagName",
       "timestampColumn": "UpdatedAt",
-      "valueColumn": "Value"
+      "valueColumn": "Value",
+      "onChange": 1
     }
   ],
   "sqlitePath": "data/offline-buffer.db"
