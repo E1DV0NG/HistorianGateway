@@ -34,7 +34,7 @@ CORS(app)
 
 LOGS_DIR    = BASE_DIR / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)
-STATS_SNAPSHOT_FILE = LOGS_DIR / 'stats_snapshot.json'
+STATS_SNAPSHOT_FILE = LOGS_DIR / '.stats_snapshot.json'
 
 FAKEGEN_CONFIG_FILE = BASE_DIR / 'simulator' / 'fakegen_config.json'
 
@@ -369,7 +369,7 @@ def fakegen_config():
         "tagColumn": "TagName",
         "valueColumn": "Value",
         "timestampColumn": "UpdatedAt",
-        "intervalSeconds": 10,
+        "intervalSeconds": 2,
         "sensors": {
             "Temperature": {"base": 22.0, "noise": 1.5},
             "Pressure": {"base": 1013.25, "noise": 10.0},
@@ -498,6 +498,8 @@ def list_logs():
     log_files = sorted(LOGS_DIR.glob('*.json'), reverse=True)
     result = []
     for f in log_files:
+        if f.name.startswith('.'):
+            continue
         try:
             size = f.stat().st_size
             result.append({
@@ -785,8 +787,29 @@ def ingest():
 
     log_file = LOGS_DIR / f'ingest_{datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.json'
 
+    now = datetime.utcnow().isoformat() + 'Z'
+    last_ingest_time = global_stats.get("last_ingest_time")
+    if last_ingest_time:
+        try:
+            last_dt = datetime.fromisoformat(last_ingest_time.replace('Z', '+00:00'))
+            seconds_since = round((datetime.utcnow().replace(tzinfo=timezone.utc) - last_dt).total_seconds(), 2)
+        except Exception:
+            seconds_since = 0
+    else:
+        seconds_since = 0
+    global_stats["last_ingest_time"] = now
+
+    # Embed operational gateway metrics into the ingest log as the user requested
+    data_to_save = data.copy()
+    data_to_save["_gatewayMetrics"] = {
+        "uptimeStart": global_stats["started_at"],
+        "totalBatchesReceived": global_stats["total_requests"],
+        "failedBatches": global_stats["failed_requests"],
+        "secondsSinceLastBatch": seconds_since
+    }
+
     with open(log_file, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        json.dump(data_to_save, f, indent=2, ensure_ascii=False)
 
     # Log summary per tag
     summary = []

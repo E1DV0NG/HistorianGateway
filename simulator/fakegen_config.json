@@ -4,7 +4,7 @@
   "tagColumn": "TagName",
   "valueColumn": "Value",
   "timestampColumn": "UpdatedAt",
-  "intervalSeconds": 5,
+  "intervalSeconds": 2,
   "sensors": {
     "Temperature": {
       "base": 22,

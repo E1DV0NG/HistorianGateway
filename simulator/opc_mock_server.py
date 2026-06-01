@@ -16,9 +16,9 @@ async def main():
     # Vytvoření složky v hierarchii OPC UA
     sim_folder = await server.nodes.objects.add_folder(idx, "Simulace")
 
-    # Přidání dvou testovacích tagů
-    teplota_node = await sim_folder.add_variable(idx, "Teplota", 20.0)
-    tlak_node = await sim_folder.add_variable(idx, "Tlak", 1.0)
+    # Přidání dvou testovacích tagů s explicitním string NodeId
+    teplota_node = await sim_folder.add_variable(f"ns={idx};s=Teplota", "Teplota", 20.0)
+    tlak_node = await sim_folder.add_variable(f"ns={idx};s=Tlak", "Tlak", 1.0)
     
     await teplota_node.set_writable()
     await tlak_node.set_writable()
@@ -31,10 +31,13 @@ async def main():
 
     async with server:
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(5)
             # Simulace neustálé změny hodnot pro test "onChange"
-            await teplota_node.write_value(round(uniform(19.0, 25.0), 2))
-            await tlak_node.write_value(round(uniform(0.9, 1.5), 2))
+            t_val = round(uniform(19.0, 25.0), 2)
+            p_val = round(uniform(0.9, 1.5), 2)
+            await teplota_node.write_value(t_val)
+            await tlak_node.write_value(p_val)
+            print(f"[MOCK] Aktualizovány hodnoty -> Teplota: {t_val} °C | Tlak: {p_val} bar")
 
 if __name__ == "__main__":
     asyncio.run(main())

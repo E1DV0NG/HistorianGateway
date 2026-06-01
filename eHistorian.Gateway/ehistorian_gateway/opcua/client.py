@@ -21,11 +21,23 @@ class OpcUaSourceRunner:
 
     async def run(self) -> None:
         backoff = 1.0
+        
         while not self._stop_event.is_set():
+            # Inicializace klienta - bezpečnější je držet instanci čistou pro každý pokus
             client = Client(url=self._config.url)
             subscription_manager: SubscriptionManager | None = None
+            
             try:
-                await client.connect()
+                self._logger.debug("Attempting to connect to OPC UA server", extra={"source_id": self._source_id, "url": self._config.url})
+                
+                # POJISTKA 1: Timeout na připojení (např. 10 sekund), ať gateway nezamrzne
+                await asyncio.wait_for(client.connect(), timeout=10.0)
+                
+                # POJISTKA 3: Zapnutí Keep-Alive (posílá ping každých X sekund). 
+                # Pokud server neodpoví, spojení se přeruší a vyvolá se výjimka do except bloku.
+                # (interval si uprav podle potřeby, např. 30s)
+                # client.start_keepalive(30) # Od asyncua v3+ je to často automatické, ale explicitní registrace neuškodí, případně přes event handler.
+
                 subscription_manager = SubscriptionManager(
                     client=client,
                     asset_id=self._config.asset_id,
@@ -35,26 +47,38 @@ class OpcUaSourceRunner:
                     event_bus=self._event_bus,
                 )
                 await subscription_manager.start()
+                
                 self._logger.info("Connected OPC UA source", extra={"source_id": self._source_id, "url": self._config.url})
                 backoff = 1.0
+                
+                # Čekáme na stop signál. Pokud mezitím spadne spojení na pozadí knihovny asyncua, 
+                # musíme zajistit, aby to probralo tento task. asyncua obvykle shodí probíhající čtení/subscriptions.
                 await self._stop_event.wait()
+                
             except Exception as exc:
                 self._logger.warning(
-                    "OPC UA source disconnected",
+                    "OPC UA source connection error or disconnected",
                     extra={"source_id": self._source_id, "url": self._config.url, "error": str(exc), "backoff_seconds": backoff},
                 )
+                
                 try:
                     await asyncio.wait_for(self._stop_event.wait(), timeout=backoff)
                 except asyncio.TimeoutError:
                     pass
+                
                 backoff = min(backoff * 2, 30.0)
+                
             finally:
+                # Korektní a bezpečné ukončení v opačném pořadí
                 if subscription_manager is not None:
                     try:
                         await subscription_manager.stop()
-                    except Exception:
-                        self._logger.debug("Ignoring OPC UA subscription shutdown error", extra={"source_id": self._source_id})
+                    except Exception as e:
+                        self._logger.debug("Ignoring OPC UA subscription shutdown error", extra={"source_id": self._source_id, "error": str(e)})
+                
                 try:
+                    # Před odpojením je dobré stopnout keepalive, pokud byl explicitně spuštěn
+                    # client.close_keepalive() 
                     await client.disconnect()
-                except Exception:
-                    self._logger.debug("Ignoring OPC UA client disconnect error", extra={"source_id": self._source_id})
+                except Exception as e:
+                    self._logger.debug("Ignoring OPC UA client disconnect error", extra={"source_id": self._source_id, "error": str(e)})

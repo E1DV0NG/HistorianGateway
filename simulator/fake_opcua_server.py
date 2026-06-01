@@ -14,7 +14,7 @@ def load_config() -> dict:
     return {
         "endpoint": "opc.tcp://0.0.0.0:4840/freeopcua/server/",
         "namespace": "http://historian.gateway.demo",
-        "intervalSeconds": 5,
+        "intervalSeconds": 3,
         "sensors": {
             "Temperature": {"base": 22.0, "noise": 1.5},
             "Pressure": {"base": 1013.25, "noise": 10.0},

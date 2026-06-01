@@ -9,7 +9,8 @@
         "ns=2;s=Teplota",
         "ns=2;s=Tlak"
       ],
-      "samplingMs": 1000
+      "samplingMs": 5000,
+      "onChange": 1
     }
   ],
   "sql": [

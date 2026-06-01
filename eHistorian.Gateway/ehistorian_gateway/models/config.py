@@ -10,6 +10,7 @@ class OpcUaSourceConfig:
     url: str
     tags: list[str] = field(default_factory=list)
     sampling_ms: int = 1000
+    on_change: int = 1
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "OpcUaSourceConfig":
@@ -18,6 +19,7 @@ class OpcUaSourceConfig:
             url=data["url"],
             tags=data.get("tags", []),
             sampling_ms=data.get("samplingMs", 1000),
+            on_change=data.get("onChange", 1),
         )
 
 
@@ -95,6 +97,7 @@ class GatewayConfig:
                     "url": o.url,
                     "tags": o.tags,
                     "samplingMs": o.sampling_ms,
+                    "onChange": o.on_change,
                 } for o in self.opcua
             ],
             "sql": [

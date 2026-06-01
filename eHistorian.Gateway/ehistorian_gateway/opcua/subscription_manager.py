@@ -52,14 +52,17 @@ class OpcUaSubscriptionHandler:
                 return
 
             # Načtení SourceTimestamp přímo z DataValue objektu
-            source_timestamp = getattr(data, "SourceTimestamp", None)
+            monitored = getattr(data, "monitored_item", None)
+            value_wrapper = getattr(monitored, "Value", None)
+
+            source_timestamp = getattr(value_wrapper, "SourceTimestamp", None)
             timestamp = source_timestamp or utcnow()
             
             if isinstance(timestamp, datetime) and timestamp.tzinfo is None:
                 timestamp = timestamp.replace(tzinfo=timezone.utc)
             
             # Bezpečné získání StatusCode
-            status_code = getattr(data, "StatusCode", None)
+            status_code = getattr(value_wrapper, "StatusCode", None)
             quality = _to_quality_name(status_code)
             
             # Bezpečné získání stringu tagu

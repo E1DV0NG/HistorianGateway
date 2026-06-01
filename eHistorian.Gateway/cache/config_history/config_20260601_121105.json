@@ -5,12 +5,11 @@
     {
       "assetId": 301,
       "url": "opc.tcp://127.0.0.1:4840/free-simulator/",
-      "samplingMs": 5000,
       "tags": [
         "ns=2;s=Teplota",
         "ns=2;s=Tlak"
       ],
-      "onChange": 1
+      "samplingMs": 1000
     }
   ],
   "sql": [
@@ -45,5 +44,6 @@
   "retryBaseSeconds": 1,
   "retryMaxSeconds": 60,
   "healthHost": "0.0.0.0",
-  "healthPort": 8088
+  "healthPort": 8088,
+  "_snapshot_timestamp": "2026-06-01T10:11:05.322300+00:00"
 }
