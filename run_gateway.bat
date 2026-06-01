@@ -17,14 +17,9 @@ if not exist ".venv\Scripts\activate.bat" (
 :: Activate virtual environment
 call .venv\Scripts\activate.bat
 
-:: Get active config profile
-set PROFILE=default.json
-if exist "active_profile.txt" (
-    set /p PROFILE=<active_profile.txt
-)
-set EHG_BOOTSTRAP_CONFIG=%~dp0configs\%PROFILE%
+:: Get config
+set EHG_BOOTSTRAP_CONFIG=%~dp0configs\default.json
 
-echo [INFO] Vybrany profil: %PROFILE%
 echo [INFO] Bootstrap konfigurace: %EHG_BOOTSTRAP_CONFIG%
 echo.
 
