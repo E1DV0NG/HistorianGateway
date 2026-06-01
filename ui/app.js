@@ -813,6 +813,34 @@ function capitalize(str) {
 }
 
 // ── Statistics ──────────────────────────────────────────
+function resetStats() {
+  if (!confirm('Opravdu chceš resetovat všechny statistiky?\nUptime bude nulován a všechna data smazána.')) return;
+
+  const btn = document.getElementById('btn-reset-stats');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Resetuji…';
+  }
+
+  fetch('/api/stats/reset', { method: 'POST' })
+    .then(r => r.json())
+    .then(() => {
+      pollStats();
+    })
+    .catch(() => {})
+    .finally(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="1 4 1 10 7 10" />
+            <path d="M3.51 15a9 9 0 1 0 .49-3.79" />
+          </svg>
+          Resetovat statistiky`;
+      }
+    });
+}
+
 const TAG_BAR_COLORS = [
   '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b',
   '#ef4444', '#06b6d4', '#ec4899', '#84cc16'

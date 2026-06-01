@@ -315,6 +315,17 @@ def get_statistics():
         "lastKnownValues": global_stats["last_known_values"]
     })
 
+@app.route('/api/stats/reset', methods=['POST'])
+def reset_statistics():
+    global_stats["total_ingested_events"] = 0
+    global_stats["total_requests"] = 0
+    global_stats["failed_requests"] = 0
+    global_stats["tag_counters"] = {}
+    global_stats["last_known_values"] = {}
+    global_stats["request_latencies"] = []
+    global_stats["started_at"] = datetime.utcnow().isoformat() + "Z"
+    return jsonify({"status": "ok", "message": "Statistics reset successfully"})
+
 # Device IP
 @app.route('/api/ip', methods=['GET'])
 def get_ip():
