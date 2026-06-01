@@ -13,9 +13,10 @@ from flask_cors import logging
 
 # ── TEST ONLY: CAN BE EASILY DELETED ──
 try:
-    from test_component import attach_test_routes, is_outage_simulated
+    from tests.test_component import attach_test_routes, is_outage_simulated, is_invalid_config_simulated
 except ImportError:
     def is_outage_simulated(): return False
+    def is_invalid_config_simulated(): return False
 # ── END TEST ONLY ──
 
 # ui/ je ve stejne slozce jako tento soubor
@@ -39,7 +40,7 @@ OLD_CONFIG_FILE = BASE_DIR / 'test.config.json'
 LOGS_DIR    = BASE_DIR / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)
 
-FAKEGEN_CONFIG_FILE = BASE_DIR / 'fakegen_config.json'
+FAKEGEN_CONFIG_FILE = BASE_DIR / 'simulator' / 'fakegen_config.json'
 
 # ── Migration ────────────────────────────────────────────
 if OLD_CONFIG_FILE.exists() and not list(CONFIGS_DIR.glob('*.json')):
@@ -722,6 +723,11 @@ def health():
 
 @app.route('/api/ehistorian/gateway/config/<gateway_id>', methods=['GET'])
 def get_gateway_config(gateway_id):
+    if is_invalid_config_simulated():
+        from flask import Response
+        print(f'[CONFIG] Gateway {gateway_id} requested config (Returning SIMULATED INVALID JSON)')
+        return Response("{ toto_je_invalidni_json, chyba syntaxe: }", status=200, mimetype='application/json')
+        
     config = load_config()
     sql_count = len(config.get('sql', []))
     opc_count = len(config.get('opcua', []))

@@ -462,6 +462,7 @@ function addSql() {
     valueColumn: "Value",
     timestampColumn: "UpdatedAt",
     pollingMs: 5000,
+    onChange: 1,
   });
   renderSources();
 }
@@ -583,7 +584,7 @@ function renderSources() {
           <span class="source-tag">SQL — Asset ${src.assetId}</span>
           <button class="btn-danger" onclick="removeSql(${i})">Remove</button>
         </div>
-        <div class="grid-2">
+        <div class="grid-3">
           <div class="form-row">
             <label>Asset ID</label>
             <input type="number" value="${src.assetId}"
@@ -593,6 +594,13 @@ function renderSources() {
             <label>Polling (ms)</label>
             <input type="number" value="${src.pollingMs}"
               onchange="currentConfig.sql[${i}].pollingMs=parseInt(this.value); saveConfig();">
+          </div>
+          <div class="form-row">
+            <label>Only Changes</label>
+            <select onchange="currentConfig.sql[${i}].onChange=parseInt(this.value); saveConfig();">
+              <option value="1" ${src.onChange !== 0 ? 'selected' : ''}>Yes (1)</option>
+              <option value="0" ${src.onChange === 0 ? 'selected' : ''}>No (0)</option>
+            </select>
           </div>
         </div>
         <div class="grid-2">

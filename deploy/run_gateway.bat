@@ -1,9 +1,9 @@
 @echo off
-title eHistorian Fake Data Generator (Simulator)
+title eHistorian Gateway (Edge Client)
 cd /d "%~dp0"
 
 echo ==================================================
-echo   eHistorian Fake Data Generator (Simulator)
+echo   eHistorian Gateway (Edge Client)
 echo ==================================================
 echo.
 
@@ -17,11 +17,19 @@ if not exist ".venv\Scripts\activate.bat" (
 :: Activate virtual environment
 call .venv\Scripts\activate.bat
 
-set FAKEGEN_CONFIG=%~dp0simulator\fakegen_config.json
+:: Get active config profile
+set PROFILE=default.json
+if exist "active_profile.txt" (
+    set /p PROFILE=<active_profile.txt
+)
+set EHG_BOOTSTRAP_CONFIG=%~dp0configs\%PROFILE%
 
-echo [INFO] Pouzivam konfiguraci: %FAKEGEN_CONFIG%
+echo [INFO] Vybrany profil: %PROFILE%
+echo [INFO] Bootstrap konfigurace: %EHG_BOOTSTRAP_CONFIG%
 echo.
 
-python simulator\fake_data_generator.py
+:: Run gateway from its folder
+cd eHistorian.Gateway
+python -m ehistorian_gateway.main
 
 if not defined EHG_NO_PAUSE pause

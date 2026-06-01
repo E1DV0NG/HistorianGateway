@@ -1,0 +1,45 @@
+{
+  "_comment": "OPC UA uses samplingMs (default 1000 ms). SQL uses pollingMs (default 2000 ms).",
+  "gatewayId": "line-01-secret",
+  "apiUrl": "https://localhost:7248",
+  "offlineBufferMaxBytes": 10485760,
+  "opcua": [
+    {
+      "assetId": 101,
+      "url": "opc.tcp://10.0.0.10:4840",
+      "samplingMs": 1000,
+      "tags": [
+        "ns=2;s=Temperature",
+        "ns=2;s=Pressure"
+      ]
+    },
+    {
+      "assetId": 102,
+      "url": "opc.tcp://10.0.0.10:4840",
+      "samplingMs": 2000,
+      "tags": [
+        "ns=2;s=Flow",
+        "ns=2;s=Level"
+      ]
+    }
+  ],
+  "sql": [
+    {
+      "assetId": 201,
+      "connectionString": "Server=localhost;Database=eFactory;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=yes;",
+      "table": "CurrentValues",
+      "tagColumn": "TagName",
+      "valueColumn": "Value",
+      "timestampColumn": "UpdatedAt",
+      "pollingMs": 5000
+    },
+    {
+      "assetId": 202,
+      "connectionString": "Server=localhost;Database=eFactory;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=yes;",
+      "table": "CurrentValuesLine2",
+      "tagColumn": "TagName",
+      "valueColumn": "Value",
+      "timestampColumn": "UpdatedAt"
+    }
+  ]
+}

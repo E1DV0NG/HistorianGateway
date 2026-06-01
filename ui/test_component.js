@@ -34,9 +34,14 @@ window.addEventListener("load", () => {
                 <button class="btn-ghost btn-full" style="margin-top: 8px; font-size: 11px;" onclick="viewPendingConfigDiff()">View Pending JSON Difference</button>
             </div>
             <div class="divider"></div>
-            <button class="btn-ghost btn-full" onclick="updateConfigStatus()">
-                Refresh Sync Status
-            </button>
+            <div class="grid-2">
+                <button class="btn-ghost btn-full" onclick="updateConfigStatus()">
+                    Refresh Sync Status
+                </button>
+                <button id="toggle-invalid-config-btn" class="btn-danger btn-full" onclick="toggleInvalidConfig()">
+                    Send Invalid JSON
+                </button>
+            </div>
         </div>
     `;
     dashboardGrid.insertAdjacentHTML('beforeend', syncCardHTML);
@@ -93,7 +98,16 @@ window.updateConfigStatus = function() {
         const alertEl = document.getElementById('pending-config-alert');
         if (!statusEl) return;
         
-        if (data.isPending) {
+        if (data.invalidConfigSimulated) {
+            statusEl.textContent = 'Simulating Invalid Config';
+            statusEl.style.color = 'var(--danger)';
+            if (alertEl) {
+                alertEl.style.display = 'block';
+                alertEl.style.borderColor = 'var(--danger)';
+                alertEl.querySelector('span').innerHTML = '<strong>Server is sending INVALID JSON!</strong><br>Gateway will fallback to Last Known Good Config.';
+                alertEl.querySelector('span').style.color = 'var(--danger)';
+            }
+        } else if (data.isPending) {
             if (data.gatewayState === 'testing') {
                 statusEl.textContent = 'Testing Configuration... (Checking SQL connections)';
                 statusEl.style.color = 'var(--accent)';
@@ -142,6 +156,29 @@ window.viewPendingConfigDiff = function() {
     currentLogData = _lastServerConfig;
     setLogViewMode('json');
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+window.simulateInvalidConfigState = false;
+window.toggleInvalidConfig = function() {
+    fetch('/api/simulate-invalid-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ simulate: !window.simulateInvalidConfigState })
+    })
+    .then(r => r.json())
+    .then(data => {
+        window.simulateInvalidConfigState = data.simulateInvalidConfig;
+        const btn = document.getElementById('toggle-invalid-config-btn');
+        if (btn) {
+            if (window.simulateInvalidConfigState) {
+                btn.textContent = "Stop Sending Invalid JSON";
+                btn.className = "btn-success btn-full";
+            } else {
+                btn.textContent = "Send Invalid JSON";
+                btn.className = "btn-danger btn-full";
+            }
+        }
+    });
 };
 
 // Outage Buffer logic
