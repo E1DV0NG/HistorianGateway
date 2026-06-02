@@ -35,6 +35,13 @@
       "onChange": 1
     }
   ],
+  "endpoints": {
+    "ingest": "/api/ehistorian/gateway/ingest",
+    "config": "/api/ehistorian/gateway/config/{gatewayId}",
+    "configStatus": "/api/ehistorian/gateway/config-status",
+    "healthStatus": "/api/ehistorian/gateway/health-status"
+  },
+  "sendLogs": 1,
   "batchSize": 500,
   "batchFlushIntervalSeconds": 3,
   "configRefreshSeconds": 30,

@@ -12,11 +12,12 @@ from ehistorian_gateway.models.event import SourceEvent
 
 
 class OpcUaSourceRunner:
-    def __init__(self, source_id: str, config: OpcUaSourceConfig, event_bus: EventBus[SourceEvent], stop_event: asyncio.Event) -> None:
+    def __init__(self, source_id: str, config: OpcUaSourceConfig, event_bus: EventBus[SourceEvent], stop_event: asyncio.Event, on_error=None) -> None:
         self._source_id = source_id
         self._config = config
         self._event_bus = event_bus
         self._stop_event = stop_event
+        self._on_error = on_error
         self._logger = logging.getLogger("ehistorian_gateway.opcua")
 
     async def run(self) -> None:
@@ -60,6 +61,9 @@ class OpcUaSourceRunner:
                     "OPC UA source connection error or disconnected",
                     extra={"source_id": self._source_id, "url": self._config.url, "error": str(exc), "backoff_seconds": backoff},
                 )
+                if self._on_error:
+                    import traceback
+                    self._on_error(self._source_id, f"Error: {str(exc)}\n\nTraceback:\n{traceback.format_exc()}")
                 
                 try:
                     await asyncio.wait_for(self._stop_event.wait(), timeout=backoff)

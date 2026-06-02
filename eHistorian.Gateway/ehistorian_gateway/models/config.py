@@ -5,6 +5,37 @@ from dataclasses import dataclass, field
 
 
 @dataclass
+class EndpointsConfig:
+    ingest: str = "/api/ehistorian/gateway/ingest"
+    config: str = "/api/ehistorian/gateway/config/{gatewayId}"
+    config_status: str = "/api/ehistorian/gateway/config-status"
+    buffer_status: str = "/api/ehistorian/gateway/buffer-status"
+    health_status: str = "/api/ehistorian/gateway/health-status"
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> "EndpointsConfig":
+        if not data:
+            return cls()
+        return cls(
+            ingest=data.get("ingest", "/api/ehistorian/gateway/ingest"),
+            config=data.get("config", "/api/ehistorian/gateway/config/{gatewayId}"),
+            config_status=data.get("configStatus", "/api/ehistorian/gateway/config-status"),
+            buffer_status=data.get("bufferStatus", "/api/ehistorian/gateway/buffer-status"),
+            health_status=data.get("healthStatus", "/api/ehistorian/gateway/health-status"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ingest": self.ingest,
+            "config": self.config,
+            "configStatus": self.config_status,
+            "bufferStatus": self.buffer_status,
+            "healthStatus": self.health_status,
+        }
+
+
+
+@dataclass
 class OpcUaSourceConfig:
     asset_id: int
     url: str
@@ -52,6 +83,7 @@ class SqlSourceConfig:
 class GatewayConfig:
     gateway_id: str
     api_url: str
+    endpoints: EndpointsConfig = field(default_factory=EndpointsConfig)
     opcua: list[OpcUaSourceConfig] = field(default_factory=list)
     sql: list[SqlSourceConfig] = field(default_factory=list)
 
@@ -66,12 +98,14 @@ class GatewayConfig:
     retry_max_seconds: float = 60.0
     health_host: str = "0.0.0.0"
     health_port: int = 8088
+    send_logs: int = 0
 
     @classmethod
     def from_mapping(cls, data: dict[str, Any]) -> "GatewayConfig":
         return cls(
             gateway_id=data["gatewayId"],
             api_url=str(data["apiUrl"]),
+            endpoints=EndpointsConfig.from_dict(data.get("endpoints")),
             opcua=[OpcUaSourceConfig.from_dict(d) for d in data.get("opcua", [])],
             sql=[SqlSourceConfig.from_dict(d) for d in data.get("sql", [])],
             batch_size=data.get("batchSize", 500),
@@ -85,12 +119,14 @@ class GatewayConfig:
             retry_max_seconds=data.get("retryMaxSeconds", 60.0),
             health_host=data.get("healthHost", "0.0.0.0"),
             health_port=data.get("healthPort", 8088),
+            send_logs=data.get("sendLogs", 0),
         )
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "gatewayId": self.gateway_id,
             "apiUrl": self.api_url,
+            "endpoints": self.endpoints.to_dict(),
             "opcua": [
                 {
                     "assetId": o.asset_id,
@@ -123,6 +159,7 @@ class GatewayConfig:
             "retryMaxSeconds": self.retry_max_seconds,
             "healthHost": self.health_host,
             "healthPort": self.health_port,
+            "sendLogs": self.send_logs,
         }
 
 
@@ -130,10 +167,12 @@ class GatewayConfig:
 class BootstrapConfig:
     gateway_id: str
     api_url: str
+    endpoints: EndpointsConfig = field(default_factory=EndpointsConfig)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "BootstrapConfig":
         return cls(
             gateway_id=data["gatewayId"],
             api_url=str(data["apiUrl"]),
+            endpoints=EndpointsConfig.from_dict(data.get("endpoints")),
         )

@@ -89,7 +89,8 @@ class ConfigManager:
                 continue
 
             # ── TEST ONLY: CAN BE EASILY DELETED ──
-            await report_config_status(self._bootstrap_config.api_url, self._bootstrap_config.gateway_id, "testing")
+            status_endpoint = f"{str(self._bootstrap_config.api_url).rstrip('/')}{self._bootstrap_config.endpoints.config_status}"
+            await report_config_status(status_endpoint, self._bootstrap_config.gateway_id, "testing")
             # ── END TEST ONLY ──
             
             self._set_current(remote)
@@ -98,7 +99,8 @@ class ConfigManager:
             self._logger.info("Gateway configuration changed", extra={"gateway_id": remote.gateway_id})
             
             # ── TEST ONLY: CAN BE EASILY DELETED ──
-            await report_config_status(self._bootstrap_config.api_url, self._bootstrap_config.gateway_id, "synchronized")
+            status_endpoint = f"{str(self._bootstrap_config.api_url).rstrip('/')}{self._bootstrap_config.endpoints.config_status}"
+            await report_config_status(status_endpoint, self._bootstrap_config.gateway_id, "synchronized")
             # ── END TEST ONLY ──
             
             await on_change(remote)
@@ -108,7 +110,8 @@ class ConfigManager:
             self._logger.debug("Skipping config fetch because Server Circuit Breaker is OPEN")
             return None
 
-        endpoint = f"{str(self._bootstrap_config.api_url).rstrip('/')}/api/ehistorian/gateway/config/{self._bootstrap_config.gateway_id}"
+        config_path = self._bootstrap_config.endpoints.config.replace("{gatewayId}", self._bootstrap_config.gateway_id)
+        endpoint = f"{str(self._bootstrap_config.api_url).rstrip('/')}{config_path}"
         def fetch():
             req = urllib.request.Request(endpoint)
             with urllib.request.urlopen(req, timeout=15) as response:

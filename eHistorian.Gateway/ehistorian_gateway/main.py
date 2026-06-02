@@ -23,17 +23,12 @@ from ehistorian_gateway.storage.sqlite_queue import SQLiteQueue
 from ehistorian_gateway.utils.circuit_breaker import CircuitBreaker
 from ehistorian_gateway.utils.logging import configure_logging
 
-# ── TEST ONLY: CAN BE EASILY DELETED ──
-try:
-    from ehistorian_gateway.test_component import test_buffer_status_reporter
-except ImportError:
-    test_buffer_status_reporter = None
-# ── END TEST ONLY ──
 
 
 @dataclass(slots=True)
 class RuntimeMetrics:
     retry_count: int = 0
+    collector_errors: int = 0
     last_successful_send_at: str | None = None
     last_config_refresh_at: str | None = None
 
@@ -104,15 +99,8 @@ class GatewayApplication:
             asyncio.create_task(self._sender_loop()),
         ]
         
-        # ── TEST ONLY: CAN BE EASILY DELETED ──
-        if test_buffer_status_reporter is not None:
-            self._background_tasks.append(
-                asyncio.create_task(test_buffer_status_reporter(
-                    self._sqlite_queue, str(self.current_config.api_url), 
-                    self.current_config.gateway_id, self.current_config.offline_buffer_max_bytes, self._stop_event
-                ))
-            )
-        # ── END TEST ONLY ──
+        if self.current_config.send_logs == 1:
+            self._background_tasks.append(asyncio.create_task(self._health_reporter_loop()))
         
         await self._restart_collectors(self.current_config)
 
@@ -136,15 +124,26 @@ class GatewayApplication:
         if self._source_bus is None:
             return
 
+        def handle_collector_error(source_id: str, error_details: str):
+            self._metrics.collector_errors += 1
+            from pathlib import Path
+            error_logs_dir = Path("d:/HistorianGateway/eHistorian.Gateway/cache/errorLogs")
+            error_logs_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            safe_source_id = source_id.replace(":", "_").replace("/", "_")
+            log_file = error_logs_dir / f"{safe_source_id}_{timestamp}.txt"
+            with suppress(Exception):
+                log_file.write_text(f"Source ID: {source_id}\n{error_details}", encoding="utf-8")
+
         handles: list[CollectorHandle] = []
         for index, opcua_config in enumerate(config.opcua):
             stop_event = asyncio.Event()
-            runner = OpcUaSourceRunner(f"opcua-{index}:asset-{opcua_config.asset_id}", opcua_config, self._source_bus, stop_event)
+            runner = OpcUaSourceRunner(f"opcua-{index}:asset-{opcua_config.asset_id}", opcua_config, self._source_bus, stop_event, on_error=handle_collector_error)
             handles.append(CollectorHandle(asyncio.create_task(runner.run()), stop_event))
 
         for index, sql_config in enumerate(config.sql):
             stop_event = asyncio.Event()
-            poller = SqlPoller(f"sql-{index}:asset-{sql_config.asset_id}:{sql_config.table}", sql_config, self._source_bus, stop_event, self._sql_polling_allowed)
+            poller = SqlPoller(f"sql-{index}:asset-{sql_config.asset_id}:{sql_config.table}", sql_config, self._source_bus, stop_event, self._sql_polling_allowed, on_error=handle_collector_error)
             handles.append(CollectorHandle(asyncio.create_task(poller.run()), stop_event))
 
         self._collector_handles = handles
@@ -205,7 +204,8 @@ class GatewayApplication:
                 continue
 
             try:
-                await self._rest_client.send_batch(str(self.current_config.api_url), batch)
+                ingest_endpoint = f"{str(self.current_config.api_url).rstrip('/')}{self.current_config.endpoints.ingest}"
+                batch_response = await self._rest_client.send_batch(ingest_endpoint, batch)
                 await self._server_cb.record_success()
                 await self._sqlite_queue.mark_sent(batch.batch_id)
                 self._metrics.last_successful_send_at = datetime.now(timezone.utc).isoformat()
@@ -228,6 +228,54 @@ class GatewayApplication:
                     },
                 )
 
+    async def _health_reporter_loop(self) -> None:
+        import urllib.request
+        import json
+        while not self._stop_event.is_set():
+            try:
+                pending_batches = await self._sqlite_queue.pending_count() if self._sqlite_queue is not None else 0
+                queue_size = self._source_bus.size if self._source_bus is not None else 0
+                normalized_queue_size = self._normalized_bus.size if self._normalized_bus is not None else 0
+                payload = {
+                    "status": "healthy" if not self._stop_event.is_set() else "stopping",
+                    "gatewayId": self.current_config.gateway_id,
+                    "queueSize": queue_size,
+                    "normalizedQueueSize": normalized_queue_size,
+                    "retryCount": self._metrics.retry_count,
+                    "collectorErrors": self._metrics.collector_errors,
+                    "droppedEvents": self._source_bus.metrics.dropped if self._source_bus is not None else 0,
+                    "pendingBatches": pending_batches,
+                    "lastSuccessfulSendAt": self._metrics.last_successful_send_at,
+                    "lastConfigRefreshAt": self._metrics.last_config_refresh_at,
+                    "collectors": len(self._collector_handles),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                endpoint = f"{str(self.current_config.api_url).rstrip('/')}{self.current_config.endpoints.health_status}"
+                body = json.dumps(payload).encode('utf-8')
+                
+                def send():
+                    req = urllib.request.Request(endpoint, data=body, headers={'Content-Type': 'application/json'}, method='POST')
+                    try:
+                        with urllib.request.urlopen(req, timeout=5) as r:
+                            return r.read()
+                    except Exception:
+                        return None
+                resp_body = await asyncio.to_thread(send)
+                if resp_body:
+                    try:
+                        resp_json = json.loads(resp_body)
+                        if resp_json.get("resetErrorCount") == 1:
+                            self._metrics.collector_errors = 0
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            
+            try:
+                await asyncio.wait_for(self._stop_event.wait(), timeout=30.0)
+            except asyncio.TimeoutError:
+                pass
+
     async def _run_health_server(self) -> None:
         async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
             try:
@@ -249,6 +297,7 @@ class GatewayApplication:
                         "queueSize": queue_size,
                         "normalizedQueueSize": normalized_queue_size,
                         "retryCount": self._metrics.retry_count,
+                        "collectorErrors": self._metrics.collector_errors,
                         "droppedEvents": self._source_bus.metrics.dropped if self._source_bus is not None else 0,
                         "pendingBatches": pending_batches,
                         "lastSuccessfulSendAt": self._metrics.last_successful_send_at,

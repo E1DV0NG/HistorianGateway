@@ -23,11 +23,9 @@ class RestClient:
     async def close(self) -> None:
         self._started = False
 
-    async def send_batch(self, api_url: str, batch: PersistedBatch) -> dict[str, Any]:
+    async def send_batch(self, endpoint: str, batch: PersistedBatch) -> dict[str, Any]:
         if not self._started:
             raise RuntimeError("HTTP session not started")
-
-        endpoint = f"{str(api_url).rstrip('/')}/api/ehistorian/gateway/ingest"
         payload = {
             "gatewayId": batch.gateway_id,
             "events": [event.to_wire() for event in batch.events],

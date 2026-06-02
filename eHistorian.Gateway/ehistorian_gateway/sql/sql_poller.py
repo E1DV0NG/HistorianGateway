@@ -13,12 +13,13 @@ from ehistorian_gateway.utils.circuit_breaker import CircuitBreaker
 
 
 class SqlPoller:
-    def __init__(self, source_id: str, config: SqlSourceConfig, event_bus: EventBus[SourceEvent], stop_event: asyncio.Event, polling_allowed: asyncio.Event) -> None:
+    def __init__(self, source_id: str, config: SqlSourceConfig, event_bus: EventBus[SourceEvent], stop_event: asyncio.Event, polling_allowed: asyncio.Event, on_error=None) -> None:
         self._source_id = source_id
         self._config = config
         self._event_bus = event_bus
         self._stop_event = stop_event
         self._polling_allowed = polling_allowed
+        self._on_error = on_error
         self._client = SqlClient(config)
         self._change_detector = ChangeDetector()
         self._circuit_breaker = CircuitBreaker(f"sql_poller_{source_id}", timeout_seconds=30.0)
@@ -71,4 +72,7 @@ class SqlPoller:
                     "SQL poller iteration failed",
                     extra={"source_id": self._source_id, "error": str(exc)},
                 )
+                if self._on_error:
+                    import traceback
+                    self._on_error(self._source_id, f"Error: {str(exc)}\n\nTraceback:\n{traceback.format_exc()}")
                 await self._circuit_breaker.record_failure()
