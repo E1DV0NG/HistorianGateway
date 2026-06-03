@@ -1,0 +1,20 @@
+Source ID: sql-1:asset-202:CurrentValuesLine2
+Error: ('08001', '[08001] [Microsoft][ODBC Driver 18 for SQL Server]Poskytovatel TCP: Chyba časového limitu [258].  (258) (SQLDriverConnect); [08001] [Microsoft][ODBC Driver 18 for SQL Server]Vypršel časový limit pro přihlášení. (0); [08001] [Microsoft][ODBC Driver 18 for SQL Server]Neplatný atribut připojovacího řetězce (0); [08001] [Microsoft][ODBC Driver 18 for SQL Server]Proces přihlašování se nepovedlo dokončit kvůli prodlevě při přihlašování. (258)')
+
+Traceback:
+Traceback (most recent call last):
+  File "D:\HistorianGateway\eHistorian.Gateway\ehistorian_gateway\sql\sql_poller.py", line 43, in run
+    rows = await self._client.read_snapshot()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\HistorianGateway\eHistorian.Gateway\ehistorian_gateway\sql\sql_client.py", line 29, in read_snapshot
+    return await asyncio.to_thread(self._read_snapshot_sync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\install\AppData\Local\Programs\Python\Python313\Lib\asyncio\threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\install\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "D:\HistorianGateway\eHistorian.Gateway\ehistorian_gateway\sql\sql_client.py", line 45, in _read_snapshot_sync
+    with pyodbc.connect(self._config.connection_string, timeout=5) as connection:
+         ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.OperationalError: ('08001', '[08001] [Microsoft][ODBC Driver 18 for SQL Server]Poskytovatel TCP: Chyba časového limitu [258].  (258) (SQLDriverConnect); [08001] [Microsoft][ODBC Driver 18 for SQL Server]Vypršel časový limit pro přihlášení. (0); [08001] [Microsoft][ODBC Driver 18 for SQL Server]Neplatný atribut připojovacího řetězce (0); [08001] [Microsoft][ODBC Driver 18 for SQL Server]Proces přihlašování se nepovedlo dokončit kvůli prodlevě při přihlašování. (258)')

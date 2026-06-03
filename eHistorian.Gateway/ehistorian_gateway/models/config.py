@@ -99,6 +99,7 @@ class GatewayConfig:
     health_host: str = "0.0.0.0"
     health_port: int = 8088
     send_logs: int = 0
+    reset_error_count: int = 0
 
     @classmethod
     def from_mapping(cls, data: dict[str, Any]) -> "GatewayConfig":
@@ -120,6 +121,7 @@ class GatewayConfig:
             health_host=data.get("healthHost", "0.0.0.0"),
             health_port=data.get("healthPort", 8088),
             send_logs=data.get("sendLogs", 0),
+            reset_error_count=data.get("resetErrorCount", 0),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -160,6 +162,7 @@ class GatewayConfig:
             "healthHost": self.health_host,
             "healthPort": self.health_port,
             "sendLogs": self.send_logs,
+            "resetErrorCount": self.reset_error_count,
         }
 
 

@@ -112,6 +112,8 @@ class GatewayApplication:
 
     def _apply_config(self, config: GatewayConfig) -> None:
         self._config = config
+        if config.reset_error_count == 1:
+            self._metrics.collector_errors = 0
 
     async def _handle_config_change(self, config: GatewayConfig) -> None:
         async with self._config_lock:

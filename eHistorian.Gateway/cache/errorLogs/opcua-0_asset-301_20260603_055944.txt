@@ -1,0 +1,37 @@
+Source ID: opcua-0:asset-301
+Error: [WinError 1225] Vzdálený počítač odmítl síťové připojení
+
+Traceback:
+Traceback (most recent call last):
+  File "D:\HistorianGateway\eHistorian.Gateway\ehistorian_gateway\opcua\client.py", line 35, in run
+    await asyncio.wait_for(client.connect(), timeout=10.0)
+  File "C:\Users\install\AppData\Local\Programs\Python\Python313\Lib\asyncio\tasks.py", line 507, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "D:\HistorianGateway\.venv\Lib\site-packages\asyncua\client\client.py", line 306, in connect
+    await self.connect_socket()
+  File "D:\HistorianGateway\.venv\Lib\site-packages\asyncua\client\client.py", line 370, in connect_socket
+    await self.uaclient.connect_socket(self.server_url.hostname, self.server_url.port)
+  File "D:\HistorianGateway\.venv\Lib\site-packages\asyncua\client\ua_client.py", line 300, in connect_socket
+    await asyncio.wait_for(asyncio.get_running_loop().create_connection(self._make_protocol, host, port), self._timeout)
+  File "C:\Users\install\AppData\Local\Programs\Python\Python313\Lib\asyncio\tasks.py", line 507, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\install\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 1171, in create_connection
+    raise exceptions[0]
+  File "C:\Users\install\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 1146, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+        exceptions, addrinfo, laddr_infos)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\install\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 1045, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "C:\Users\install\AppData\Local\Programs\Python\Python313\Lib\asyncio\proactor_events.py", line 728, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\install\AppData\Local\Programs\Python\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Users\install\AppData\Local\Programs\Python\Python313\Lib\asyncio\windows_events.py", line 600, in finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+ConnectionRefusedError: [WinError 1225] Vzdálený počítač odmítl síťové připojení

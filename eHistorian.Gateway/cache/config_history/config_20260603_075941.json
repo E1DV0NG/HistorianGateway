@@ -54,6 +54,5 @@
   "healthHost": "0.0.0.0",
   "healthPort": 8088,
   "sendLogs": 1,
-  "resetErrorCount": 0,
-  "_snapshot_timestamp": "2026-06-03T06:09:32.893775+00:00"
+  "_snapshot_timestamp": "2026-06-03T05:59:41.392169+00:00"
 }

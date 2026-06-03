@@ -1,6 +1,13 @@
 {
   "gatewayId": "line-01-secret",
   "apiUrl": "http://localhost:5000",
+  "endpoints": {
+    "ingest": "/api/ehistorian/gateway/ingest",
+    "config": "/api/ehistorian/gateway/config/{gatewayId}",
+    "configStatus": "/api/ehistorian/gateway/config-status",
+    "bufferStatus": "/api/ehistorian/gateway/buffer-status",
+    "healthStatus": "/api/ehistorian/gateway/health-status"
+  },
   "opcua": [
     {
       "assetId": 301,
@@ -35,7 +42,6 @@
       "onChange": 1
     }
   ],
-  "sendLogs": 1,
   "batchSize": 500,
   "batchFlushIntervalSeconds": 3,
   "configRefreshSeconds": 30,
@@ -46,5 +52,7 @@
   "retryBaseSeconds": 1,
   "retryMaxSeconds": 60,
   "healthHost": "0.0.0.0",
-  "healthPort": 8088
+  "healthPort": 8088,
+  "sendLogs": 1,
+  "resetErrorCount": 0
 }

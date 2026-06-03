@@ -42,6 +42,7 @@
     "healthStatus": "/api/ehistorian/gateway/health-status"
   },
   "sendLogs": 1,
+  "resetErrorCount": 0,
   "batchSize": 500,
   "batchFlushIntervalSeconds": 3,
   "configRefreshSeconds": 30,
