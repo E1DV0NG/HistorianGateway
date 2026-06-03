@@ -6,8 +6,8 @@ async def main():
     server = Server()
     await server.init()
     
-    # Nastavení lokální adresy
-    server.set_endpoint("opc.tcp://127.0.0.1:4840/free-simulator/")
+    # Nastavení lokální adresy (0.0.0.0 umožňuje přístup i z Dockeru)
+    server.set_endpoint("opc.tcp://0.0.0.0:4840/free-simulator/")
     server.set_server_name("Muj Free Simulator")
 
     # Registrace jmenného prostoru

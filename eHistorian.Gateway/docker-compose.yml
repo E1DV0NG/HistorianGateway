@@ -1,0 +1,17 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ehistorian-gateway:latest
+    container_name: ehistorian-gateway
+    restart: unless-stopped
+    environment:
+      - EHG_BOOTSTRAP_CONFIG=/app/bootstrap.config.json
+      - EHG_SQLITE_PATH=/data/offline-buffer.db
+    volumes:
+      - ./bootstrap.config.json:/app/bootstrap.config.json
+      - ./data:/data
+      - ./cache:/app/cache
+    ports:
+      - "8088:8088"

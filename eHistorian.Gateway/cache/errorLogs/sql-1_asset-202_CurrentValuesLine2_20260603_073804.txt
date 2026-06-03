@@ -1,0 +1,21 @@
+Source ID: sql-1:asset-202:CurrentValuesLine2
+Error: ('HYT00', '[HYT00] [Microsoft][ODBC Driver 18 for SQL Server]Login timeout expired (0) (SQLDriverConnect)')
+
+Traceback:
+Traceback (most recent call last):
+  File "/app/ehistorian_gateway/sql/sql_poller.py", line 43, in run
+    rows = await self._client.read_snapshot()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ehistorian_gateway/sql/sql_client.py", line 29, in read_snapshot
+    return await asyncio.to_thread(self._read_snapshot_sync)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/ehistorian_gateway/sql/sql_client.py", line 45, in _read_snapshot_sync
+    with pyodbc.connect(self._config.connection_string, timeout=5) as connection:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pyodbc.OperationalError: ('HYT00', '[HYT00] [Microsoft][ODBC Driver 18 for SQL Server]Login timeout expired (0) (SQLDriverConnect)')
