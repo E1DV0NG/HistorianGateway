@@ -1,0 +1,6 @@
+{
+  "apiUrl": "http://localhost:5000",
+  "gatewayId": "line-01-secret",
+  "opcua": [],
+  "sql": []
+}

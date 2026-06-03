@@ -1,0 +1,18 @@
+Source ID: opcua-0:asset-301
+Error: [WinError 1225] Vzdálený počítač odmítl síťové připojení
+
+Traceback:
+Traceback (most recent call last):
+  File "ehistorian_gateway\opcua\client.py", line 35, in run
+  File "asyncio\tasks.py", line 507, in wait_for
+  File "asyncua\client\client.py", line 306, in connect
+  File "asyncua\client\client.py", line 370, in connect_socket
+  File "asyncua\client\ua_client.py", line 300, in connect_socket
+  File "asyncio\tasks.py", line 507, in wait_for
+  File "asyncio\base_events.py", line 1171, in create_connection
+  File "asyncio\base_events.py", line 1146, in create_connection
+  File "asyncio\base_events.py", line 1045, in _connect_sock
+  File "asyncio\proactor_events.py", line 728, in sock_connect
+  File "asyncio\windows_events.py", line 804, in _poll
+  File "asyncio\windows_events.py", line 600, in finish_connect
+ConnectionRefusedError: [WinError 1225] Vzdálený počítač odmítl síťové připojení

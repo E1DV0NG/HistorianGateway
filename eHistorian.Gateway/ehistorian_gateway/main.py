@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import logging
 import os
 import signal
+from pathlib import Path
 
 from ehistorian_gateway.config.manager import ConfigManager
 from ehistorian_gateway.models.config import GatewayConfig
@@ -82,8 +83,16 @@ class GatewayApplication:
         assert self._config is not None
         self._source_bus = EventBus(maxsize=self._config.queue_maxsize)
         self._normalized_bus = EventBus(maxsize=self._config.queue_maxsize)
-        sqlite_path = os.getenv("EHG_SQLITE_PATH") or os.getenv("EMG_SQLITE_PATH") or self._config.sqlite_path
-        self._sqlite_queue = SQLiteQueue(sqlite_path, max_bytes=self.current_config.offline_buffer_max_bytes)
+        sqlite_path_str = os.getenv("EHG_SQLITE_PATH") or os.getenv("EMG_SQLITE_PATH") or self._config.sqlite_path
+        sqlite_path = Path(sqlite_path_str)
+        if not sqlite_path.is_absolute():
+            import sys
+            if getattr(sys, 'frozen', False):
+                base_dir = Path(sys.executable).resolve().parent
+            else:
+                base_dir = Path(__file__).resolve().parent.parent
+            sqlite_path = base_dir / sqlite_path
+        self._sqlite_queue = SQLiteQueue(str(sqlite_path), max_bytes=self.current_config.offline_buffer_max_bytes)
         await self._sqlite_queue.initialize()
         self._rest_client = RestClient(timeout_seconds=self._config.request_timeout_seconds)
         await self._rest_client.start()
@@ -128,8 +137,13 @@ class GatewayApplication:
 
         def handle_collector_error(source_id: str, error_details: str):
             self._metrics.collector_errors += 1
+            import sys
             from pathlib import Path
-            error_logs_dir = Path("d:/HistorianGateway/eHistorian.Gateway/cache/errorLogs")
+            if getattr(sys, 'frozen', False):
+                base_dir = Path(sys.executable).resolve().parent
+            else:
+                base_dir = Path(__file__).resolve().parent.parent
+            error_logs_dir = base_dir / "cache" / "errorLogs"
             error_logs_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             safe_source_id = source_id.replace(":", "_").replace("/", "_")
@@ -357,7 +371,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="eHistorian Gateway")
     parser.add_argument(
         "--bootstrap",
-        default=os.getenv("EHG_BOOTSTRAP_CONFIG") or os.getenv("EMG_BOOTSTRAP_CONFIG") or "example.config.json",
+        default=os.getenv("EHG_BOOTSTRAP_CONFIG") or os.getenv("EMG_BOOTSTRAP_CONFIG") or "default.json",
         help="Path to the local bootstrap JSON config.",
     )
     return parser.parse_args()

@@ -12,12 +12,7 @@ import urllib.error
 
 from ehistorian_gateway.models.config import BootstrapConfig, GatewayConfig
 
-# ── TEST ONLY: CAN BE EASILY DELETED ──
-try:
-    from ehistorian_gateway.test_component import report_config_status
-except ImportError:
-    async def report_config_status(*args, **kwargs): pass
-# ── END TEST ONLY ──
+
 
 
 ConfigCallback = Callable[[GatewayConfig], Awaitable[None]]
@@ -27,7 +22,11 @@ class ConfigManager:
     def __init__(self, bootstrap_path: str) -> None:
         self._bootstrap_path = Path(bootstrap_path)
         self._logger = logging.getLogger("ehistorian_gateway.config")
-        base_dir = Path(__file__).resolve().parent.parent.parent
+        import sys
+        if getattr(sys, 'frozen', False):
+            base_dir = Path(sys.executable).resolve().parent
+        else:
+            base_dir = Path(__file__).resolve().parent.parent.parent
         cache_dir = base_dir / "cache"
         
         self._current_active_path = cache_dir / "current_active.json"
@@ -88,20 +87,14 @@ class ConfigManager:
             if new_hash == self._config_hash:
                 continue
 
-            # ── TEST ONLY: CAN BE EASILY DELETED ──
-            status_endpoint = f"{str(self._bootstrap_config.api_url).rstrip('/')}{self._bootstrap_config.endpoints.config_status}"
-            await report_config_status(status_endpoint, self._bootstrap_config.gateway_id, "testing")
-            # ── END TEST ONLY ──
+
             
             self._set_current(remote)
             self._save_current_active(remote)
             self._save_config_snapshot(remote)
             self._logger.info("Gateway configuration changed", extra={"gateway_id": remote.gateway_id})
             
-            # ── TEST ONLY: CAN BE EASILY DELETED ──
-            status_endpoint = f"{str(self._bootstrap_config.api_url).rstrip('/')}{self._bootstrap_config.endpoints.config_status}"
-            await report_config_status(status_endpoint, self._bootstrap_config.gateway_id, "synchronized")
-            # ── END TEST ONLY ──
+
             
             await on_change(remote)
 
@@ -181,6 +174,7 @@ class ConfigManager:
 
     def _save_current_active(self, config: GatewayConfig) -> None:
         try:
+            self._current_active_path.parent.mkdir(parents=True, exist_ok=True)
             payload = config.to_dict()
             self._current_active_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
         except Exception as exc:
