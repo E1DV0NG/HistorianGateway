@@ -1,0 +1,4 @@
+{
+  "gatewayId": "line-01-gateway",
+  "apiUrl": "http://localhost:5000"
+}

@@ -189,19 +189,6 @@ class ConfigManager:
                 self._logger.warning("Failed to read current_active.json, ignoring")
         return None
 
-    async def _test_sql_connections(self, config: GatewayConfig) -> bool:
-        from ehistorian_gateway.sql.sql_client import SqlClient
-        for sql_conf in config.sql:
-            try:
-                client = SqlClient(sql_conf)
-                await client.test_connection()
-            except Exception as exc:
-                self._logger.critical(
-                    f"Config validation failed for SQL asset {sql_conf.asset_id}", 
-                    extra={"error": str(exc), "gateway_id": config.gateway_id}
-                )
-                return False
-        return True
 
     def _save_config_snapshot(self, config: GatewayConfig) -> None:
         self._history_dir.mkdir(parents=True, exist_ok=True)
