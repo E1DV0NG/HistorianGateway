@@ -1,0 +1,32 @@
+Source ID: opcua-0:asset-301
+Error: [Errno 111] Connect call failed ('127.0.0.1', 4840)
+
+Traceback:
+Traceback (most recent call last):
+  File "/app/ehistorian_gateway/opcua/client.py", line 35, in run
+    await asyncio.wait_for(client.connect(), timeout=10.0)
+  File "/usr/local/lib/python3.11/asyncio/tasks.py", line 489, in wait_for
+    return fut.result()
+           ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/asyncua/client/client.py", line 306, in connect
+    await self.connect_socket()
+  File "/usr/local/lib/python3.11/site-packages/asyncua/client/client.py", line 370, in connect_socket
+    await self.uaclient.connect_socket(self.server_url.hostname, self.server_url.port)
+  File "/usr/local/lib/python3.11/site-packages/asyncua/client/ua_client.py", line 300, in connect_socket
+    await asyncio.wait_for(asyncio.get_running_loop().create_connection(self._make_protocol, host, port), self._timeout)
+  File "/usr/local/lib/python3.11/asyncio/tasks.py", line 489, in wait_for
+    return fut.result()
+           ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 1086, in create_connection
+    raise exceptions[0]
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 1070, in create_connection
+    sock = await self._connect_sock(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 974, in _connect_sock
+    await self.sock_connect(sock, address)
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 638, in sock_connect
+    return await fut
+           ^^^^^^^^^
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 678, in _sock_connect_cb
+    raise OSError(err, f'Connect call failed {address}')
+ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 4840)

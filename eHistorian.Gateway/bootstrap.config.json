@@ -1,4 +1,4 @@
 {
   "gatewayId": "line-01-gateway",
-  "apiUrl": "http://localhost:5000"
+  "apiUrl": "http://host.docker.internal:5000"
 }

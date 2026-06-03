@@ -1,6 +1,6 @@
 {
   "gatewayId": "line-01-secret",
-  "apiUrl": "http://localhost:5000",
+  "apiUrl": "http://host.docker.internal:5000",
   "endpoints": {
     "ingest": "/api/ehistorian/gateway/ingest",
     "config": "/api/ehistorian/gateway/config/{gatewayId}",
@@ -11,7 +11,7 @@
   "opcua": [
     {
       "assetId": 301,
-      "url": "opc.tcp://127.0.0.1:4840/free-simulator/",
+      "url": "opc.tcp://host.docker.internal:4840/free-simulator/",
       "tags": [
         "ns=2;s=Teplota",
         "ns=2;s=Tlak"
